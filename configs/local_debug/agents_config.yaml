@@ -15,9 +15,9 @@ ag1:
       empty_start: 9
       empty_end: 20
       empty_val: 0.1
-      no_empty_val: 0.1
+      no_empty_val: 0.19
   battery:
-    capacity: 20  
+    capacity: 10
     charging_power_limit: 5.0
     discharging_power_limit: -5.0
     charging_efficiency: 0.9
@@ -38,9 +38,32 @@ ag2:
       empty_start: 9
       empty_end: 20
       empty_val: 0.1
-      no_empty_val: 0.1
+      no_empty_val: 0.19
   battery:
-    capacity: 20  
+    capacity: 10 
+    charging_power_limit: 0.5
+    discharging_power_limit: -0.25
+    charging_efficiency: 0.9
+    discharging_efficiency: 0.9
+    initial_soc_percent: 0.2
+
+ag3:
+  agent_cls: Agent
+  params:
+    load_id: ag3
+    pv_id: PV4
+  data_info:
+    data_file: 'dataset_gecad_clean.csv'
+    data_proc_cls: GecadDataProcessor
+  tariffs:
+    tar_type: 'double_rate'
+    double_rate_params:
+      empty_start: 9
+      empty_end: 20
+      empty_val: 0.1
+      no_empty_val: 0.19
+  battery:
+    capacity: 10 
     charging_power_limit: 5.0
     discharging_power_limit: -5.0
     charging_efficiency: 0.9

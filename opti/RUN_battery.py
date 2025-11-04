@@ -39,7 +39,7 @@ com_vars = StateVars(file_vars)
 
 # === Set Parameters ===
 ti = 0
-H = 4 * 24 * 4
+H = 7 * 24 * 4
 
 # === Build and Solve Model ===
 model = battmodel_(com, H)

@@ -1,0 +1,12 @@
+
+├─ analysis/
+│  ├─ __init__.py
+│  ├─ alphas.py
+│  ├─ allocate.py
+│  ├─ metrics.py
+│  └─ viz.py
+├─ scripts/
+│  └─ run_alpha_analysis.py
+├─ env/                  # (já tens)
+├─ utils/                # (já tens)
+└─ outputs/

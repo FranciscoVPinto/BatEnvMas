@@ -5,6 +5,7 @@ Created on Thu Mar  7 15:01:52 2024
 
 @author: omega
 """
+import sys
 
 
 from pathlib import Path
@@ -20,13 +21,14 @@ algos_config = configs_folder / 'algos_configs'
 resultsfolder=cwd.parent / 'Results'
 
 
+
 import os
 
 from env.community import Community
 from env.environment import FlexEnv
 from env.state import StateVars
-from tests.experiment import Experiment
-from tests.experiment_test import SimpleTests
+from testings.experiment import Experiment
+from testings.experiment_test import SimpleTests
 from trains.trainable import Trainable
 from utils.dataprocessor import YAMLParser
 from utils.utilities import ConfigsParser
@@ -56,11 +58,9 @@ configs=ConfigsParser(configs_folder, exp_name)
 
 file_ag_conf, file_apps_conf, file_scene_conf, file_prob_conf,file_vars,file_experiment, ppo_config=configs.get_configs()
 
-#%% import datafiles and agent dataprocessor
-# gecad_dataset=datafolder / 'Dataset_gecad_changed.xlsx'
-gecad_dataset=datafolder / 'dataset_gecad_clean.csv'
-# gecad_processor=GecadDataProcessor(file_prob_conf,file_ag_conf,gecad_dataset)
-# data=gecad_processor.data
+#%% import dataset file
+file=YAMLParser().load_yaml(file_prob_conf)['dataset_file']
+gecad_dataset=datafolder / file
 
 #%% Trainning or debugging
 train=YAMLParser().load_yaml(file_experiment)['train']
@@ -88,7 +88,7 @@ df_list=envi.env_processor.get_daily_stats()
 # merged=envi.env_processor.merge_df_list_on_agents(df_list)
 print('number of days for trainning', len(envi.allowed_inits))
 
-    #%%
+#%%
 menvi=MultiAgentEnvCompatibility(envi)
 menvi._agent_ids=envi._agent_ids
 

@@ -94,7 +94,7 @@ class Analyzer():
         
     def get_exp_info(self):
         """"
-        creates a analyzer attrubite with info on the experiment of the results 
+        creates a analyzer attribute with info on the experiment of the results 
         from experiment configs
         
         
@@ -102,7 +102,7 @@ class Analyzer():
         """
     
         self.exp_info=utilities.get_exp_from_results_name(self.folder.name)
-        
+
         self.config=ConfigsParser(configs_folder, self.exp_info['train_exp'])
         
         _,_,_,_,_,exp_config,algo_config=self.config.get_configs()
@@ -168,7 +168,7 @@ class Analyzer():
 
        
     def get_baseline_costs(self):
-
+ 
         # baseline_files=FolderUtils().get_file_in_folder(self.baseline_folder,'.csv')
         folders=FolderUtils().get_subfolders(self.baseline_folder)
         # baseline_files=FolderUtils().get_csv_files_in_subfolders(self.baseline_folder,'.csv')
@@ -207,11 +207,12 @@ class Analyzer():
         creates a dataframe that stores cost values between optimal solution 
         and rl agent alongside metrics derived from this comparison
         
-        if there are day in whcih the RL solution is better than optimal 
-        that means that at least one machine did not turn on on that day what happens in 
-        the testing of policies
+        if there are day in which the RL solution is better than optimal 
+        that means that at least one machine did not turn on on that day 
+        during the testing of policies
         
-        The result filters out those days and returns only the good days
+        The result filters out those days and returns only the good days 
+        (days in which all appliances)
         
         """
         
@@ -292,6 +293,8 @@ class Analyzer():
     def get_per_agent_costs(self):
         data = []
         indexes=self.metrics.index.unique()
+        import pdb
+        pdb.pdb.set_trace()
         
         for i in indexes:
             # Extract data for each unique index value
@@ -312,8 +315,7 @@ class Analyzer():
         
         utilities().print_info('hardcoded for the 3 agents and the specific testing community// Need to get community info in analyse phase')
         
-        # import pdb
-        # pdb.pdb.set_trace()
+        
         utilities().print_info('HardCode alert :Need to solve')
         w=pd.DataFrame([3.6,3.0,3.0],index=df_final.columns,columns=['En'])
         
@@ -639,7 +641,8 @@ class AnalyzerMulti():
       
     def plot_year_mean_cost_per_model(self,save=False):
         df=self.get_multi_year_data_eq()
-        df=df['cost_mean']
+        variable='cost_mean'
+        df=df[variable]
         
         
         file_name=None
@@ -651,6 +654,29 @@ class AnalyzerMulti():
         infos['x_label']='model'
         infos['y_label']='€/day' 
         infos['hue']='experiment'
+        infos['var']=variable
+        self.plot.plot_barplot(df,file_name,infos)
+        
+    def plot_year_mean_cost_per_model_opti(self,save=False):
+        """
+        - Plots the mean daily optimal objective for each experiment under the
+        same experiment group.
+        """
+        df=self.get_multi_year_data_diff()
+        variable='objective_mean'
+        df=df[variable]
+        
+        
+        file_name=None
+        if save:
+            file_name=str(self.compare_results_folder / 'daily_mean_costs.png')
+   
+        infos={}
+        infos['title']='Daily Mean Optimal Cost for running collective appliances'
+        infos['x_label']='model'
+        infos['y_label']='€/day' 
+        infos['hue']='experiment'
+        infos['var']=variable
         self.plot.plot_barplot(df,file_name,infos)
     
     def plot_year_mean_cost_group(self,save=False):

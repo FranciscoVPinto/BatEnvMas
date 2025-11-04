@@ -71,7 +71,35 @@ class DataProcessor():
     
     @staticmethod        
     def make_env_data(data,timesteps, load_id, pv_factor):
-        "(data: timeseries, laod_num: house number, pv_factor"
+        
+        """
+        Constructs a DataFrame data to feed the environment data provided the load id (reference to the original dataset)
+    
+        This method extracts a subset of the input time series data and computes the load, PV generation,
+        net delta, and excess generation for each timestep.
+    
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            The input time series data. Must contain columns 'minutes', 'PV', and 'load'.
+        timesteps : int
+            The number of timesteps to include from the start of the data.
+        load_id : str
+            The column name in `data` corresponding to the desired load in the original dataset.
+        pv_factor : float
+            Scaling factor to apply to the PV generation data.
+    
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame with columns:
+                - 'minutes': Time in minutes for each timestep.
+                - 'load': Load data for the specified load_id.
+                - 'gen': Scaled absolute PV generation.
+                - 'delta': Net load minus generation.
+                - 'excess': Excess generation (when generation exceeds load, else zero).
+    
+        """
         
         df=pd.DataFrame()
         
@@ -81,8 +109,6 @@ class DataProcessor():
         df['delta']=df['load']-df['gen']
         df['excess']=[max(0,-df['delta'][k]) for k in range(timesteps)] 
         
-        # gen=np.zeros(timesteps)
-        # minutes=make_minutes(data,timesteps) # make minutes vector
         
         return df
     
@@ -126,11 +152,11 @@ class DataProcessor():
         final_df.rename(columns={'gen_com': 'gen'}, inplace=True)
                 
         return final_df
-        
+         
     @staticmethod
     def get_limits(data, mode, var):
         """
-        returns the max, min values of vars in the commuity dataset to be used when defining the observation limits in the environment
+        returns the max, min values of vars in the community dataset to be used when defining the observation limits in the environment
         """
         
         lims=data.describe()
@@ -139,6 +165,22 @@ class DataProcessor():
     
     @staticmethod
     def inspect_timeslot(data, timeslot):
+        """
+        Extracts all records from a MultiIndex DataFrame for a specific timeslot.
+    
+        Parameters
+        ----------
+        data : pandas.DataFrame
+            A DataFrame with a MultiIndex, where the second level corresponds to timeslots.
+        timeslot : int
+            The value of the timeslot to filter by (e.g., an integer, string, or timestamp).
+    
+        Returns
+        -------
+        pandas.DataFrame
+            A DataFrame containing all rows from the specified timeslot across all first-level indices.
+
+        """
         return data.loc[(slice(None), timeslot), :]
 
 
@@ -226,7 +268,17 @@ class DataPostProcessor:
         # self.metrics=Metrics(env)
     
     def get_post_data(self):
-        """This function produces dataframes for analysing results from the environment itself, i.e, the environment stores all the state-action history and from there we can recover and post-process data"""
+        """This function produces dataframes for analysing results from the 
+        environment itself:
+            
+            
+        - the environment stores all the state-action history 
+        - From there we can recover and post-process data
+        
+        - This function is used while testing the environment in the TestEnv class
+        
+        
+        """
         
         
         df=pd.DataFrame()
@@ -250,8 +302,7 @@ class DataPostProcessor:
             df.loc[aid,'shift_base']=df.loc[aid]['action']*self.env.com.agents[aid].apps[0].get_profile(self.ds_unit,self.env.tstep_size)[0]+df.loc[aid]['load0'] #for each agent the sum of its shiftable load with its base load
             
         df['shift'].name='shiftable load for each agent'
-        # import pdb
-        # pdb.pdb.set_trace()
+
         #Sum all variables over the agents for each timestep
         df_group=df.groupby('tstep').sum() # In this dataframe al variables are summed
         
@@ -266,12 +317,10 @@ class DataPostProcessor:
             df.loc[aid,'coef_shift']=df.loc[aid]['shift']/df.loc[aid]['shift_T'] #sharing/load coeficient considering only the shiftable loads
             df.loc[aid,'coef_shift']=df.loc[aid,'coef_shift'].fillna(0)
             
-            # import pdb
-            # pdb.pdb.set_trace()
+
             df.loc[aid,'coef_shift_base']=df.loc[aid]['shift_base']/df.loc[aid]['shift_base_T'] #sharing/load coefficient considering shiftable and base load
             # df=df.infer_objects(copy=False)
-            # import pdb
-            # pdb.pdb.set_trace()
+
             df.loc[aid,'coef_shift_base']=df.loc[aid,'coef_shift_base'].astype(float).fillna(0)
 
             utilities().print_info('Individual Cost computing: Real individual cost for each agent AFFECTED by the sharing coefficient, i.e, we assume that excess is shared according to the APPLIANCE load level of each agent')
@@ -314,8 +363,6 @@ class DataPostProcessor:
                     cols_names.append(k)
                     
         
-        
-        #
         df_post=df_select[cols_names] #select the variables that are relevant
         df_post=df_post.drop(columns=[k for k in df_post.columns if 'tar_buy0' in k]) #we dont need tar_buy0
         
@@ -637,7 +684,7 @@ class EnvDataProcessor():
     def get_selected_allowed_inits(self,config,agents_params):
         """
         returns the initial timeslot for each day, i.e, time=00:00
-        removes the day for which the PV is the same during the wholle day to clean out conitnuous values PV
+        removes the day for which the PV is the same during the wholle day to clean out continuous values PV
         """
         
         def detect_anomalies_pv(time_series,k):

@@ -158,30 +158,7 @@ class Agent():
 
     
     
-    # def rename_data_cols(self):
-    #     """
-    #     When changing the load_id from configs, agent data columns names must remain refering to the agent id
-    #     """
-        
-    #     if self.id != self.load_id:
-    #         print('mudei cenas')
-    #         # Define the new column names
-    #         new_column_names = ['minutes', self.id, 'PV'+self.id]
-    
-    #         # Rename columns using the new column names
-    #         self.data.rename(columns=dict(zip(self.data.columns, new_column_names)), inplace=True)
-    #     else:
-    #         pass
-        
-    
-    
-    
-    # def get_limits(self, mode,var):
-    #     df=self.data.describe()
-    #     df.rename(index={'ag2': 'load', 'PV2': 'gen'}, inplace=True)
-        
-        
-    #     return df[mode, var]
+
         
         
         

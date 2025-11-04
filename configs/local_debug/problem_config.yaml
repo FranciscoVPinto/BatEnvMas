@@ -7,6 +7,7 @@ time_units: mins
 
 #dataset
 dataset_unit: kwh #kw or kwh
+dataset_file: 'dataset_gecad_clean.csv'
 
 # data_info:
 #   data_file: 'Dataset_gecad_changed.xlsx'

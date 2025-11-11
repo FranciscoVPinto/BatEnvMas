@@ -245,8 +245,6 @@ def run(cfg: AlphaRunConfig):
     }
 
 
-# ---------------- Run with USER SETTINGS ----------------
-
 if __name__ == "__main__":
     cfg = AlphaRunConfig(
         load_csv=Path(LOAD_CSV),

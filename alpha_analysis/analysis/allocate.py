@@ -75,9 +75,6 @@ def allocate_pv_global_to_load(
 
 
 def allocate_unlimited(pv_global: pd.Series, alpha: np.ndarray, agents: List[str]) -> pd.DataFrame:
-    """Distribute 100% of PV_global(t) by alpha[:, t] with no caps or eligibility.
-    Matches the runner's expected signature and returns only the allocation DataFrame.
-    """
     H = len(pv_global)
     n = len(agents)
     if alpha.shape != (n, H):
@@ -88,10 +85,6 @@ def allocate_unlimited(pv_global: pd.Series, alpha: np.ndarray, agents: List[str
 
 
 def build_receiver_mask(load_df: pd.DataFrame, pv_df: pd.DataFrame, tol: float = 1e-9) -> np.ndarray:
-    """Elegibilidade para receber partilha no período:
-    True = pode receber; False = está a injetar (gen - load > 0).
-    Returns shape (n x H) to match alpha's orientation.
-    """
     net = pv_df.values - load_df.values   # (H x n)
     inject = (net > tol)                  # (H x n)
     eligible = ~inject

@@ -1,7 +1,11 @@
 from __future__ import annotations
+
+from typing import List, Tuple
 import numpy as np
 import pandas as pd
-from typing import List
+
+from analysis.alphas import normalize_alpha_cols  # column-stochastic safeguard
+
 
 def allocate_pv_global_to_load(
     pv_global: pd.Series,          # (H,)
@@ -9,18 +13,10 @@ def allocate_pv_global_to_load(
     alpha: np.ndarray,             # (n x H) coluna-estocástico
     agents: List[str],
     tol: float = 1e-9,
-    max_rounds: int = 5,
+    max_rounds: int = 5,           # ignorado nesta variante (sem redistribuição)
     eligible_mask: np.ndarray | None = None,  # (n x H) True = pode receber
 ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
-    """
-    Aloca PV_global(t) às cargas L_i(t) com cap x_i(t) ≤ L_i(t),
-    com redistribuição iterativa e elegibilidade opcional.
 
-    Returns:
-      - alloc_df: (H x n) PV usado por agente no instante (kWh por slot)
-      - export_series: (H,) PV que sobrou (excedente exportado)
-      - import_series: (H,) carga que faltou cobrir (importação da rede)
-    """
     n = len(agents)
     H = len(pv_global)
     if alpha.shape != (n, H):
@@ -32,55 +28,69 @@ def allocate_pv_global_to_load(
 
     alloc = np.zeros((H, n), dtype=float)
     pv_vals = pv_global.values
-    load_vals = load_df.values
 
     for t in range(H):
-        avail = pv_vals[t]
-        if avail <= tol:
+        pv_t = pv_vals[t]
+        if pv_t <= tol:
             continue
 
-        a = alpha[:, t].copy()
-        remaining = load_vals[t].copy()
+        # 1) pesos base
+        a = alpha[:, t].astype(float).copy()
 
+        # 2) aplicar elegibilidade (se existir)
         if eligible_mask is not None:
-            # zera quem não pode receber e cap nas necessidades
             a[~eligible_mask[:, t]] = 0.0
-            remaining[~eligible_mask[:, t]] = 0.0
 
+        # 3) normalizar por coluna (se soma > 0); caso contrário, ninguém recebe
         s = a.sum()
-        a[:] = (a / s) if s > 0 else (1.0 / n)
+        if s > tol:
+            w = a / s
+        else:
+            # ninguém elegível / pesos nulos -> sem alocação neste t
+            continue
 
-        active = remaining > tol
-        rounds = 0
-        while avail > tol and active.any() and rounds < max_rounds:
-            weight_sum = a[active].sum()
-            if weight_sum <= 0:
-                weights = np.zeros_like(a)
-                weights[active] = 1.0 / active.sum()
-            else:
-                weights = np.zeros_like(a)
-                weights[active] = a[active] / weight_sum
+        # 4) Atribuição pura (SEM cap pelo load)
+        alloc[t, :] = pv_t * w
 
-            proposed = avail * weights
-            give = np.minimum(proposed, remaining)
-            got = give.sum()
-
-            alloc[t, :] += give
-            remaining -= give
-            avail -= got
-            active = remaining > tol
-            rounds += 1
-
+    # DataFrame da alocação
     alloc_df = pd.DataFrame(alloc, columns=agents, index=load_df.index)
-    pv_used = alloc_df.sum(axis=1)
-    export_series = (pv_global - pv_used).clip(lower=0.0)
-    import_series = (load_df.sum(axis=1) - pv_used).clip(lower=0.0)
+
+    consumed_clamped = np.minimum(load_df.values, alloc_df.values)
+    consumed_clamped_sum = consumed_clamped.sum(axis=1)
+
+    export_series = pd.Series(
+        (pv_vals - consumed_clamped_sum).clip(min=0.0),
+        index=load_df.index,
+        name="export_physical",
+    )
+
+    total_load_t = load_df.values.sum(axis=1)
+    import_series = pd.Series(
+        (total_load_t - consumed_clamped_sum).clip(min=0.0),
+        index=load_df.index,
+        name="import_physical",
+    )
+
     return alloc_df, export_series, import_series
 
-def build_receiver_mask(load_df: pd.DataFrame, pv_df: pd.DataFrame, tol: float=1e-9) -> np.ndarray:
+
+def allocate_unlimited(pv_global: pd.Series, alpha: np.ndarray, agents: List[str]) -> pd.DataFrame:
+    """Distribute 100% of PV_global(t) by alpha[:, t] with no caps or eligibility.
+    Matches the runner's expected signature and returns only the allocation DataFrame.
     """
-    Elegibilidade para receber partilha no período:
+    H = len(pv_global)
+    n = len(agents)
+    if alpha.shape != (n, H):
+        raise ValueError(f"alpha shape {alpha.shape} != ({n}, {H})")
+    alpha = normalize_alpha_cols(alpha)
+    alloc = (alpha * pv_global.to_numpy()[None, :]).T  # (H, n)
+    return pd.DataFrame(alloc, columns=agents, index=pv_global.index)
+
+
+def build_receiver_mask(load_df: pd.DataFrame, pv_df: pd.DataFrame, tol: float = 1e-9) -> np.ndarray:
+    """Elegibilidade para receber partilha no período:
     True = pode receber; False = está a injetar (gen - load > 0).
+    Returns shape (n x H) to match alpha's orientation.
     """
     net = pv_df.values - load_df.values   # (H x n)
     inject = (net > tol)                  # (H x n)

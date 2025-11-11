@@ -1,32 +1,60 @@
 from __future__ import annotations
+from typing import Dict, List
 import numpy as np
 import pandas as pd
-from typing import Dict, List
+
+__all__ = [
+    # base + aliases used by the runner
+    "alpha_equal",
+    "alpha_proportional_mean_load",
+    "alpha_mean_load",
+    "alpha_instant_load_share",
+    "alpha_instant_load",
+    "normalize_alpha_cols",
+    "normalize_alpha",
+    # extras
+    "alpha_fixed_from_shares",
+    "alpha_fixed_from_df",
+    "alpha_hierarchical",
+    "alpha_dynamic_windows",
+    "build_alpha_configs_pv_global",
+]
 
 # ========= Base builders =========
 def alpha_equal(n_agents: int, H: int) -> np.ndarray:
-    """Divide sempre por igual: α_i(t) = 1/n."""
+    """Divide sempre por igual: α_i(t) = 1/n (constante no tempo). Retorna (n, H)."""
+    if n_agents <= 0 or H <= 0:
+        raise ValueError("n_agents and H must be positive")
     return np.full((n_agents, H), 1.0 / n_agents, dtype=float)
 
+
 def alpha_proportional_mean_load(load_df: pd.DataFrame) -> np.ndarray:
-    """Constante no tempo: pesos ∝ carga média de cada agente."""
+    """Constante no tempo: pesos ∝ carga média de cada agente. Retorna (n, H)."""
+    if load_df.empty:
+        raise ValueError("load_df is empty")
     H = load_df.shape[0]
     means = load_df.mean(axis=0).values  # (n,)
-    total = means.sum()
+    total = float(means.sum())
     if total <= 0:
         return alpha_equal(load_df.shape[1], H)
     w = means / total
     return np.tile(w.reshape(-1, 1), (1, H))  # (n x H)
 
+
 def alpha_instant_load_share(load_df: pd.DataFrame) -> np.ndarray:
-    """Proporcional à carga instantânea: α_i(t) ∝ L_i(t)."""
+    """Proporcional à carga instantânea: α_i(t) ∝ L_i(t). Retorna (n, H)."""
+    if load_df.empty:
+        raise ValueError("load_df is empty")
     L = load_df.values                   # (H x n)
     denom = L.sum(axis=1, keepdims=True) # (H x 1)
     share = np.divide(L, denom, out=np.zeros_like(L), where=denom > 0)  # (H x n)
     return share.T  # (n x H)
 
+
 def normalize_alpha_cols(alpha: np.ndarray) -> np.ndarray:
-    """Garante colunas a somar 1; colunas nulas viram split igual."""
+    """Normaliza por coluna para somar 1; colunas nulas viram split igual. Retorna (n, H)."""
+    if alpha.ndim != 2:
+        raise ValueError("alpha must be 2D (n_agents, H)")
     n, H = alpha.shape
     out = alpha.copy()
     col_sums = out.sum(axis=0, keepdims=True)   # (1, H)
@@ -36,24 +64,39 @@ def normalize_alpha_cols(alpha: np.ndarray) -> np.ndarray:
         out[:, ~nz_cols] = 1.0 / n
     return out
 
-# ========= Fixed (RAC Art. 29.º) =========
+# Aliases de compatibilidade esperados por algum código
+alpha_mean_load = alpha_proportional_mean_load
+alpha_instant_load = alpha_instant_load_share
+normalize_alpha = normalize_alpha_cols
+
+# ========= Fixed (coeficientes fixos) =========
 def alpha_fixed_from_shares(shares: Dict[str, float], agents: List[str], H: int) -> np.ndarray:
-    """Coeficientes fixos constantes no tempo (somam 1)."""
+    """
+    Coeficientes fixos (constantes no tempo) por agente. 'shares' é um dict {agente: peso}.
+    Normaliza para somar 1. Retorna (n, H).
+    """
+    if H <= 0:
+        raise ValueError("H must be positive")
     w = np.array([max(0.0, shares.get(a, 0.0)) for a in agents], dtype=float)
     if w.sum() <= 0:
         w = np.ones(len(agents), dtype=float)
     w /= w.sum()
     return np.tile(w.reshape(-1, 1), (1, H))
 
+
 def alpha_fixed_from_df(alpha_df: pd.DataFrame, agents: List[str], H: int) -> np.ndarray:
-    """Time-varying: alpha_df (H x n) com colunas = agents. Normaliza por coluna depois."""
+    """
+    Time-varying via DataFrame (H x n) com colunas = agents.
+    Valores são clipados para >=0 e normalizados por coluna depois.
+    Retorna (n, H).
+    """
     if list(alpha_df.columns) != agents:
         alpha_df = alpha_df.reindex(columns=agents)
     if len(alpha_df) != H:
         raise ValueError(f"alpha_fixed_from_df: H mismatch ({len(alpha_df)} vs {H})")
     return alpha_df.T.clip(lower=0.0).values
 
-# ========= Hierarchical (RAC Art. 31.º) =========
+# ========= Hierarchical =========
 def alpha_hierarchical(
     groups: Dict[str, List[str]],
     agents: List[str],
@@ -64,8 +107,9 @@ def alpha_hierarchical(
 ) -> np.ndarray:
     """
     alpha_agent(t) = alpha_within_group(t) * alpha_group
-    - dentro do grupo: inner_rule
+    - dentro do grupo: inner_rule (Equal | ProportionalMean | InstantLoad)
     - entre grupos: outer_shares (fixo; normalizado)
+    Retorna (n, H).
     """
     n = len(agents)
     A = np.zeros((n, H), dtype=float)
@@ -97,7 +141,7 @@ def alpha_hierarchical(
 
     return normalize_alpha_cols(A)
 
-# ========= Dynamic (RAC Art. 32.º, ex-post by windows) =========
+# ========= Dynamic (janelas) =========
 def alpha_dynamic_windows(
     agents: List[str],
     H: int,
@@ -106,6 +150,7 @@ def alpha_dynamic_windows(
     """
     windows: [(t0, t1_excl, shares_dict_benef)]
     Ex.: [(0,96*7,{"A01":0.6,"A02":0.4}), (96*7,H,{"A01":0.3,"A02":0.7})]
+    Retorna (n, H).
     """
     A = np.zeros((len(agents), H), dtype=float)
     for (t0, t1, shares) in windows:
@@ -119,7 +164,7 @@ def alpha_dynamic_windows(
         A[:, t0:t1] = vec.reshape(-1, 1)
     return normalize_alpha_cols(A)
 
-# ========= Convenience: build standard set =========
+# ========= Convenience =========
 def build_alpha_configs_pv_global(load_df: pd.DataFrame) -> dict:
     H = load_df.shape[0]
     n = load_df.shape[1]

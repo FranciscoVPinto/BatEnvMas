@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, List, Dict, Sequence, Any
 import pandas as pd
+import numpy as np
 
 from analysis.alphas import (
     alpha_equal,
@@ -178,11 +179,19 @@ def run(cfg: AlphaRunConfig):
         alloc_df = allocate_unlimited(pv_series, A, agents)
         alloc_df.index = timestamps
 
+        # Usado (cortado pela carga)
+        used_df = pd.DataFrame(
+            np.minimum(alloc_df.values, load_df.values),
+            index=alloc_df.index, columns=alloc_df.columns
+        )
+
         # KPIs + fairness
         base_kpis = energy_kpis(load_df, alloc_df, pv_series)  # 1-row DF
         row = base_kpis.iloc[0].to_dict()
         row["Fairness"] = fairness_index(alloc_df, load_df)
         row["Jain"] = jains_index(alloc_df, load_df)
+        row["FairnessUsed"] = fairness_index(used_df, load_df)
+        row["JainUsed"] = jains_index(used_df, load_df)
         kpis = pd.DataFrame([row], index=[key])
         metrics_rows.append(kpis)
 
@@ -197,6 +206,7 @@ def run(cfg: AlphaRunConfig):
                 "load_week.csv": load_df,
                 "pv_week.csv": pv_series.to_frame("PV"),
                 "allocation_unlimited.csv": alloc_df,
+                "allocation_used_capped.csv": used_df,
                 "kpis.csv": kpis,
             })
 

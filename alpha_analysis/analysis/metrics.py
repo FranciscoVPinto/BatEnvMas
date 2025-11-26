@@ -28,7 +28,8 @@ def fairness_index(pv_alloc_df: pd.DataFrame, load_df: pd.DataFrame) -> float:
     ratios = total_alloc / (total_load + eps)
     mean = ratios.mean()
     std = ratios.std()
-    return 1 - (std / (mean + eps))  # 1 = perfect fairness
+    val = 1 - (std / (mean + eps))  # 1 = perfeita; pode ficar <0 se dispersão >> média
+    return max(0.0, float(val))
 
 
 def jains_index(pv_alloc_df: pd.DataFrame, load_df: pd.DataFrame) -> float:

@@ -232,6 +232,40 @@ def plot_metrics_bar(out_dir: Path, metrics_by_cfg: pd.DataFrame,
     plt.close(fig)
 
 
+
+
+def plot_total_alloc_vs_used_by_agent(out_dir: Path, load_df: pd.DataFrame,
+                                      alloc_by_cfg: Dict[str, pd.DataFrame],
+                                      img_format: str = "png", dpi: int = 144) -> None:
+    """
+    Para cada configuração, cria um gráfico comparativo (barras lado a lado)
+    com o TOTAL **disponível** vs TOTAL **usado** por agente, no horizonte.
+    - disponível = soma_t alloc[a,t]
+    - usado      = soma_t min(alloc[a,t], load[a,t])
+    """
+    for name, A in alloc_by_cfg.items():
+        A = _align_df_to_t(A, load_df.index)
+        U = pd.DataFrame(np.minimum(A.values, load_df.values), index=A.index, columns=A.columns)
+        tot_alloc = A.sum(axis=0)
+        tot_used  = U.sum(axis=0)
+
+        # Ordena por total alocado (desc) para facilitar leitura
+        order = tot_alloc.sort_values(ascending=False).index
+        x = np.arange(len(order))
+        w = 0.42
+
+        fig, ax = plt.subplots(1, 1, figsize=(max(10, 0.5*len(order)), 6))
+        ax.bar(x - w/2, tot_alloc.loc[order].values, width=w, label="Total disponível")
+        ax.bar(x + w/2, tot_used.loc[order].values,  width=w, label="Total usado")
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(order, rotation=45, ha="right")
+        ax.set_ylabel("kWh (total no horizonte)")
+        ax.set_title(f"Total vs Usado por agente – {name}")
+        ax.legend()
+        fig.tight_layout()
+        fig.savefig(out_dir / f"total_vs_usado_por_agente__{name}.{img_format}", dpi=dpi)
+        plt.close(fig)
 # -----------------------------
 # Public API
 # -----------------------------
@@ -286,6 +320,9 @@ def generate_full_report(
     fig.savefig(out_dir / f"overview__{exp_name}.{img_format}", dpi=dpi)
     plt.close(fig)
 
+    # 2c) Comparação: Total disponível vs Total usado por agente (por configuração)
+    plot_total_alloc_vs_used_by_agent(out_dir, load_df, alloc_by_cfg, img_format, dpi)
+
     # 3) Heatmaps de alphas
     plot_alpha_heatmaps(out_dir, timestamps, alpha_by_cfg or {}, receiver_mask, dpi, img_format)
 
@@ -296,6 +333,14 @@ def generate_full_report(
     # 5) Barras de métricas
     if metrics_by_cfg is not None:
         plot_metrics_bar(out_dir, metrics_by_cfg, img_format, dpi)
+    # 5c) Checagem de sanidade: soma(alloc) == PV_total por passo
+    pv_total = _sum_pv(pv_df)
+    for name, A in alloc_by_cfg.items():
+        diff = (A.sum(axis=1) - pv_total).abs().max()
+        if diff > 1e-6:
+            print(f"[WARN] {name}: soma(alloc) != PV_total; max|dif| = {diff:.3g}")
+
+
 
     # 6) CSVs auxiliares (auditoria)
     audit = pd.DataFrame({

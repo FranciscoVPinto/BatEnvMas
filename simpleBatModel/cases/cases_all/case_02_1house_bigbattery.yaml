@@ -1,0 +1,30 @@
+case: case_02_1house_bigbattery
+
+time:
+  dt_hours: 1
+  horizon: 500
+
+data:
+  pv: data/pv_gen.csv
+  loads:
+    1: data/load_cons.csv
+
+tariffs:
+  grid_buy: 0.25
+  grid_sell: 0.05
+
+solver:
+  name: highs
+  options: {}
+
+houses:
+  1:
+    battery:
+      E_init: 4.0
+      E_min: 0.5
+      E_max: 12.0
+      P_ch_max: 4.0
+      P_dis_max: 4.0
+      eta_ch: 0.95
+      eta_dis: 0.95
+      P_grid_max: 10.0

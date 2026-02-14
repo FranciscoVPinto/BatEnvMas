@@ -1,0 +1,33 @@
+runset: experiments_all_8
+cases_base_dir: cases/cases_all
+
+cases:
+  - case_01_1house_baseline.yaml
+  - case_02_1house_bigbattery.yaml
+  - case_03_2houses_baseline.yaml
+  - case_04_2houses_bigB.yaml
+  - case_05_2houses_sharedPV_equal.yaml
+  - case_06_2houses_sharedPV_weighted_70_30.yaml
+  - case_07_2houses_sharedPV_unnormalized_normalize.yaml
+  - case_08_2houses_sharedPV_equal_high_price.yaml
+  - case_sharedPV_fallback_instant.yaml
+  - case_sharedPV_fallback_mean.yaml
+
+enabled:
+  case_01_1house_baseline: true
+  case_02_1house_bigbattery: true
+  case_03_2houses_baseline: true
+  case_04_2houses_bigB: true
+  case_05_2houses_sharedPV_equal: true
+  case_06_2houses_sharedPV_weighted_70_30: true
+  case_07_2houses_sharedPV_unnormalized_normalize: true
+  case_08_2houses_sharedPV_equal_high_price: true
+  case_sharedPV_fallback_instant: true
+  case_sharedPV_fallback_mean: true
+
+defaults:
+  outputs_dir: results
+  tee: false
+  solver:
+    name: highs
+    options: {}

@@ -1,0 +1,27 @@
+simpleBatModel/
+  cases/
+    case_1house.yaml
+    case_2houses.yaml
+  data/
+    pv_gen.csv
+    load_cons.csv
+  outputs/
+    case_1house/
+      results_house_1.csv
+      meta.yaml
+    case_2houses/
+      results_house_1.csv
+      results_house_2.csv
+      meta.yaml
+  src/
+    batenv/
+      models/
+        battery.py          # (SimpleBatteryModel)
+      utils/
+        solve.py            # solve_model
+        export.py           # model_to_dataframe
+      io/
+        loaders.py          # ler yaml/csv, cortar T, etc.
+  scripts/
+    run_case.py            # gera CSV(s) no outputs/<case_name>/
+    make_plots.py          # lê CSV(s) e gera plots (quando quiseres)

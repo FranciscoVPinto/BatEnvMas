@@ -1,0 +1,50 @@
+case: case_sharedPV_fallback_instant
+case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+  Mec\Tese\BatEnvMas\simpleBatModel\cases\cases_all\case_sharedPV_fallback_instant.yaml
+created_at: '2026-02-14T23:24:35.268560'
+dt_hours: 1.0
+horizon: 500
+solver:
+  name: highs
+  options: {}
+canonicalize_warnings: []
+pv_preprocess:
+  warnings: []
+  mode: shared_alpha
+  normalize: false
+  strict_sum_to_one: false
+  fallback:
+    mode: consumption_instant
+    apply_when: always
+    zero_denom: equal_split
+  fallback_used: true
+  fallback_details:
+    fallback_mode: consumption_instant
+    zero_denom: equal_split
+    denom_min: 1.1265
+    denom_max: 3.895
+preprocess_files:
+  pv_total: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\preprocess\pv_total.csv
+  alpha_sum: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\preprocess\alpha_sum.csv
+  alpha_used_A: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\preprocess\alpha_used_A.csv
+  pv_alloc_A: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\preprocess\pv_alloc_A.csv
+  alpha_used_B: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\preprocess\alpha_used_B.csv
+  pv_alloc_B: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\preprocess\pv_alloc_B.csv
+houses:
+- house: A
+  csv: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\results_house_A.csv
+  solver: highs
+  termination_condition: optimal
+  status: ok
+- house: B
+  csv: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia Mec\Tese\BatEnvMas\simpleBatModel\results\case_sharedPV_fallback_instant\results_house_B.csv
+  solver: highs
+  termination_condition: optimal
+  status: ok
+notes: CSVs generated only. Run scripts/make_plots_all.py to generate plots.

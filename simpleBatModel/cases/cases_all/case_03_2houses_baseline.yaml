@@ -1,23 +1,12 @@
 case: case_03_2houses_baseline
-
-time:
-  dt_hours: 1
-  horizon: 500
-
 data:
   pv: data/pv_gen.csv
   loads:
     A: data/load_cons.csv
     B: data/load_cons.csv
-
 tariffs:
   grid_buy: 0.25
   grid_sell: 0.05
-
-solver:
-  name: highs
-  options: {}
-
 houses:
   A:
     battery:

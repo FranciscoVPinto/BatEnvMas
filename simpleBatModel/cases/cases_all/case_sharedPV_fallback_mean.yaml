@@ -1,32 +1,19 @@
 case: case_sharedPV_fallback_mean
-
-time:
-  dt_hours: 1
-  horizon: 500
-
 data:
   pv_total: data/pv_gen.csv
   loads:
     A: data/load_cons.csv
     B: data/load_cons.csv
-
 sharing:
   mode: fixed_alpha
   fallback:
     mode: consumption_mean
-    apply_when: always   # usa sempre alpha_i = mean(Load_i)/sum_j mean(Load_j) (constante no tempo)
-
+    apply_when: always
   normalize: false
   strict_sum_to_one: false
-
 tariffs:
   grid_buy: 0.25
   grid_sell: 0.05
-
-solver:
-  name: highs
-  options: {}
-
 houses:
   A:
     battery:
@@ -38,7 +25,6 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_grid_max: 10.0
-
   B:
     battery:
       E_init: 1.0

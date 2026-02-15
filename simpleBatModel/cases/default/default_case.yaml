@@ -26,8 +26,6 @@ time:
   # Time step in hours.
   # dt_hours = 1 means each step is 1 hour.
   # If you use 0.25, each step is 15 minutes.
-
-  horizon: 500
   # Number of time steps to simulate/optimize.
   # The scripts will read the first "horizon" samples from each CSV.
 

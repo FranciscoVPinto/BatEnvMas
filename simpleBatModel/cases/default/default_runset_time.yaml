@@ -1,0 +1,17 @@
+runset: default_runset
+cases_base_dir: "cases"
+
+cases:
+  - "default_case.yaml"
+
+enabled:
+  default_case: true
+
+defaults:
+  outputs_dir: "results"
+  tee: false
+
+  time:
+    horizon: 96
+    dt_hours: 0.25
+    start: "2025-01-01 00:00"

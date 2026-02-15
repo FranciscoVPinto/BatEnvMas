@@ -1,17 +1,13 @@
 runset: default_runset
-cases_base_dir: "cases"
-
+cases_base_dir: cases
 cases:
-  - "default_case.yaml"
-
+- default_case.yaml
 enabled:
   default_case: true
-
 defaults:
-  outputs_dir: "results"   # keep consistent with your run_case default
+  outputs_dir: results
   tee: false
-
-  # (optional) global defaults you may use later
-  # solver:
-  #   name: "highs"
-  #   options: {}
+  time:
+    horizon: 500
+    dt_hours: 1.0
+    start: 2025-01-01 00:00

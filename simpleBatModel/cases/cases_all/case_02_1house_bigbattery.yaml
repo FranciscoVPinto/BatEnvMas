@@ -1,22 +1,11 @@
 case: case_02_1house_bigbattery
-
-time:
-  dt_hours: 1
-  horizon: 500
-
 data:
   pv: data/pv_gen.csv
   loads:
     1: data/load_cons.csv
-
 tariffs:
   grid_buy: 0.25
   grid_sell: 0.05
-
-solver:
-  name: highs
-  options: {}
-
 houses:
   1:
     battery:

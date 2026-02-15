@@ -39,19 +39,76 @@ def _write_1col_csv(path: Path, series: list[float]):
             f.write(f"{float(v)}\n")
 
 
-def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bool = False):
+def _apply_time_override(cfg: dict, time_override: dict | None) -> tuple[dict, dict, list[str]]:
+    """
+    Applies runset-level time defaults (e.g., horizon) to the case cfg.
+
+    Policy:
+      - If override defines a field, it always wins.
+      - If the case defines a different value, we overwrite and record a warning.
+
+    This lets you centralize horizon in the runset without editing all case YAMLs.
+    """
+    if not time_override:
+        return cfg, {}, []
+
+    if not isinstance(time_override, dict):
+        raise ValueError("time_override must be a dict (e.g. {'horizon': 96})")
+
+    time_cfg = cfg.get("time", {})
+    if not isinstance(time_cfg, dict):
+        time_cfg = {}
+
+    used: dict = {}
+    warnings: list[str] = []
+
+    for k in ("horizon", "dt_hours", "start"):
+        if k not in time_override:
+            continue
+
+        ov = time_override[k]
+        if ov is None:
+            continue
+
+        if k in time_cfg and time_cfg[k] is not None:
+            if str(k) == "start":
+                if str(time_cfg[k]) != str(ov):
+                    warnings.append(f"Overriding time.start from case '{time_cfg[k]}' to runset '{ov}'")
+            else:
+                try:
+                    if float(time_cfg[k]) != float(ov):
+                        warnings.append(f"Overriding time.{k} from case {time_cfg[k]} to runset {ov}")
+                except Exception:
+                    warnings.append(f"Overriding time.{k} from case {time_cfg[k]} to runset {ov}")
+
+        time_cfg[k] = ov
+        used[k] = ov
+
+    cfg["time"] = time_cfg
+    return cfg, used, warnings
+
+
+def run_case(
+    case_yaml: str | Path,
+    outputs_dir: str | Path = "results",
+    tee: bool = False,
+    *,
+    time_override: dict | None = None,
+):
     case_yaml_path = _abs_from_root(case_yaml)
     cfg_raw = load_case_yaml(case_yaml_path)
 
-    # Canonicaliza IDs e valida estrutura base cedo
     cfg, canon_warnings = canonicalize_case_cfg(cfg_raw)
     validate_case_cfg_basic(cfg)
 
+    cfg, time_used_from_override, time_override_warnings = _apply_time_override(cfg, time_override)
+
     case_name = str(cfg.get("case", None) or Path(case_yaml_path).stem)
 
-    time_cfg = cfg.get("time", {})
+    time_cfg = cfg.get("time", {}) if isinstance(cfg.get("time", {}), dict) else {}
     dt_hours = float(time_cfg.get("dt_hours", 1.0))
     T = int(time_cfg.get("horizon", 500))
+    start = time_cfg.get("start", None)
 
     data_cfg = cfg.get("data", {})
     loads_cfg = data_cfg.get("loads", {})
@@ -62,6 +119,10 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
     outputs_dir_path = _abs_from_root(outputs_dir)
     out_case = outputs_dir_path / case_name
     _ensure_dir(out_case)
+
+    if time_override_warnings:
+        for w in time_override_warnings:
+            print(f"[WARN] {case_name}: {w}")
 
     c_grid, c_sell = build_tariffs(cfg, T)
 
@@ -129,7 +190,6 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
         if not isinstance(batt_cfg, dict):
             raise ValueError(f"houses.{hid}.battery must be a dict")
 
-        # Validações numéricas básicas (para falhar cedo e bem)
         E_init = float(batt_cfg["E_init"])
         E_min = float(batt_cfg["E_min"])
         E_max = float(batt_cfg["E_max"])
@@ -176,6 +236,9 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
         "created_at": dt.datetime.now().isoformat(),
         "dt_hours": dt_hours,
         "horizon": T,
+        "start": start,
+        "time_override_used": time_used_from_override,
+        "time_override_warnings": time_override_warnings,
         "solver": {"name": solver_name, "options": solver_options},
         "canonicalize_warnings": canon_warnings,
         "pv_preprocess": pv_info,

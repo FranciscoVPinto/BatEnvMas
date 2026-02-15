@@ -53,6 +53,12 @@ def run_all(runset_yaml: str | Path):
 
     tee_default = bool(defaults.get("tee", False))
 
+    time_defaults = defaults.get("time", None)
+    if time_defaults is not None and not isinstance(time_defaults, dict):
+        raise ValueError(
+            "defaults.time must be a dict (e.g. {horizon: 96, dt_hours: 0.25, start: '2025-01-01 00:00'})"
+        )
+
     enabled_map = runset.get("enabled", {}) or {}
     if not isinstance(enabled_map, dict):
         raise ValueError("enabled must be a dict mapping case_name -> true/false")
@@ -64,6 +70,8 @@ def run_all(runset_yaml: str | Path):
     print(f"[RUNSET] {runset_name}")
     print(f"[RUNSET] Base dir: {base_dir.resolve()}")
     print(f"[RUNSET] Outputs : {outputs_dir.resolve()}")
+    if isinstance(time_defaults, dict) and "horizon" in time_defaults:
+        print(f"[RUNSET] Horizon : {time_defaults.get('horizon')}")
     print("")
 
     for rel in case_files:
@@ -80,7 +88,12 @@ def run_all(runset_yaml: str | Path):
             continue
 
         print(f"[RUN ] {case_name} ({case_path.name})")
-        run_case(str(case_path), outputs_dir=str(outputs_dir), tee=tee_default)
+        run_case(
+            str(case_path),
+            outputs_dir=str(outputs_dir),
+            tee=tee_default,
+            time_override=time_defaults,
+        )
         print("")
 
     print("[DONE] All enabled cases executed.")

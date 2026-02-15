@@ -1,15 +1,9 @@
 case: case_08_2houses_sharedPV_equal_high_price
-
-time:
-  dt_hours: 1
-  horizon: 500
-
 data:
   pv_total: data/pv_gen.csv
   loads:
     A: data/load_cons.csv
     B: data/load_cons.csv
-
 sharing:
   mode: fixed_alpha
   alpha:
@@ -17,15 +11,9 @@ sharing:
     B: 0.5
   normalize: false
   strict_sum_to_one: true
-
 tariffs:
-  grid_buy: 0.40
+  grid_buy: 0.4
   grid_sell: 0.03
-
-solver:
-  name: highs
-  options: {}
-
 houses:
   A:
     battery:

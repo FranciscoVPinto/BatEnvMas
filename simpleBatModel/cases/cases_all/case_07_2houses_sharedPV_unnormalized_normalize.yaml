@@ -1,15 +1,9 @@
 case: case_07_2houses_sharedPV_unnormalized_normalize
-
-time:
-  dt_hours: 1
-  horizon: 500
-
 data:
   pv_total: data/pv_gen.csv
   loads:
     A: data/load_cons.csv
     B: data/load_cons.csv
-
 sharing:
   mode: fixed_alpha
   alpha:
@@ -17,15 +11,9 @@ sharing:
     B: 1.0
   normalize: true
   strict_sum_to_one: false
-
 tariffs:
   grid_buy: 0.25
   grid_sell: 0.05
-
-solver:
-  name: highs
-  options: {}
-
 houses:
   A:
     battery:

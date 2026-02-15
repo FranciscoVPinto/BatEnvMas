@@ -3,14 +3,19 @@ cases_base_dir: cases/cases_all
 outputs_dir: results
 
 cases:
-  - case_01_1house_baseline.yaml
-  - case_02_1house_bigbattery.yaml
-  - case_03_2houses_baseline.yaml
-  - case_04_2houses_bigB.yaml
-  - case_05_2houses_sharedPV_equal.yaml
-  - case_06_2houses_sharedPV_weighted_70_30.yaml
-  - case_07_2houses_sharedPV_unnormalized_normalize.yaml
-  - case_08_2houses_sharedPV_equal_high_price.yaml
+- case_01_1house_baseline.yaml
+- case_02_1house_bigbattery.yaml
+- case_03_2houses_baseline.yaml
+- case_04_2houses_bigB.yaml
+- case_05_2houses_sharedPV_equal.yaml
+- case_06_2houses_sharedPV_weighted_70_30.yaml
+- case_07_2houses_sharedPV_unnormalized_normalize.yaml
+- case_08_2houses_sharedPV_equal_high_price.yaml
+- case_sharedPV_fallback_instant.yaml
+- case_sharedPV_fallback_mean.yaml
+- case_tariff_bihoraria_15min.yaml
+- case_tariff_week_weekend_15min.yaml
+- case_tariff_monthly_15min.yaml
 
 enabled:
   case_01_1house_baseline: true
@@ -21,6 +26,11 @@ enabled:
   case_06_2houses_sharedPV_weighted_70_30: true
   case_07_2houses_sharedPV_unnormalized_normalize: true
   case_08_2houses_sharedPV_equal_high_price: true
+  case_sharedPV_fallback_instant: true
+  case_sharedPV_fallback_mean: true
+  case_tariff_bihoraria_15min: true
+  case_tariff_week_weekend_15min: true
+  case_tariff_monthly_15min: true
 
 plots:
   per_case: true

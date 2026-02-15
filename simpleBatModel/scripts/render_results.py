@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Any, Optional
 
 import yaml
 import pandas as pd
@@ -19,7 +19,11 @@ from batEnv.plotting import (
     plot_compare_timeseries,
     plot_compare_metrics,
 )
-from batEnv.utils.community_metrics import COMMUNITY_ID, aggregate_community_timeseries, compute_community_extra_metrics
+from batEnv.utils.community_metrics import (
+    COMMUNITY_ID,
+    aggregate_community_timeseries,
+    compute_community_extra_metrics,
+)
 
 
 def load_plotset_yaml(path: str | Path) -> dict:
@@ -41,12 +45,36 @@ def resolve_case_path(cases_base_dir: Path, item: str) -> Path:
     return p
 
 
-def get_case_name_and_dt(case_yaml_path: Path) -> Tuple[str, float]:
+def get_case_name(case_yaml_path: Path) -> str:
     c = load_case_yaml(case_yaml_path)
-    case_name = c.get("case", case_yaml_path.stem)
+    return str(c.get("case", case_yaml_path.stem))
+
+
+def _read_meta(case_out_dir: Path) -> dict:
+    meta_path = case_out_dir / "meta.yaml"
+    if not meta_path.exists():
+        return {}
+    try:
+        with meta_path.open("r", encoding="utf-8") as f:
+            m = yaml.safe_load(f) or {}
+        return m if isinstance(m, dict) else {}
+    except Exception:
+        return {}
+
+
+def get_dt_hours(case_yaml_path: Path, case_out_dir: Path, dt_default: float = 1.0) -> float:
+    meta = _read_meta(case_out_dir)
+    if "dt_hours" in meta and meta["dt_hours"] is not None:
+        try:
+            return float(meta["dt_hours"])
+        except Exception:
+            pass
+    c = load_case_yaml(case_yaml_path)
     time_cfg = c.get("time", {}) if isinstance(c.get("time", {}), dict) else {}
-    dt_hours = float(time_cfg.get("dt_hours", 1.0))
-    return str(case_name), dt_hours
+    try:
+        return float(time_cfg.get("dt_hours", dt_default))
+    except Exception:
+        return float(dt_default)
 
 
 def read_house_csvs(case_out_dir: Path) -> Dict[str, pd.DataFrame]:
@@ -57,8 +85,15 @@ def read_house_csvs(case_out_dir: Path) -> Dict[str, pd.DataFrame]:
     return dfs
 
 
-def make_per_case_plots(case_name: str, case_out_dir: Path, dt_hours: float, *, include_community: bool = False) -> None:
-    plots_dir = case_out_dir / "plots"
+def make_per_case_plots(
+    case_name: str,
+    case_out_dir: Path,
+    dt_hours: float,
+    *,
+    out_root: Path,
+    include_community: bool = False,
+) -> None:
+    plots_dir = out_root / "per_case" / case_name / "houses"
     plots_dir.mkdir(parents=True, exist_ok=True)
 
     house_dfs = read_house_csvs(case_out_dir)
@@ -71,21 +106,23 @@ def make_per_case_plots(case_name: str, case_out_dir: Path, dt_hours: float, *, 
         if not df_comm.empty:
             house_dfs = dict(house_dfs)
             house_dfs[COMMUNITY_ID] = df_comm
+            # also save community timeseries
+            comm_csv = out_root / "per_case" / case_name / "community_timeseries.csv"
+            df_comm.to_csv(comm_csv, index=False)
 
     for house_id, df in house_dfs.items():
         out_png = plots_dir / f"plot_house_{house_id}.png"
-        plot_house_per_case(df, out_png, title=f"{case_name} | house {house_id}", dt_hours=dt_hours)
-        print(f"[OK] per-case: {case_name} / house {house_id}")
+        plot_house_per_case(df, out_png, title=f"{case_name} | {house_id}", dt_hours=dt_hours)
 
-    print(f"[OK] per-case saved: {plots_dir}")
+    print(f"[OK] per-case saved: {plots_dir.parent}")
 
 
 def make_comparisons(
     plotset_name: str,
-    outputs_dir: Path,
+    out_root: Path,
     cases_info: list[tuple[str, Path, float]],
 ) -> None:
-    comp_root = outputs_dir / "_comparisons" / plotset_name
+    comp_root = out_root / "comparisons"
     comp_root.mkdir(parents=True, exist_ok=True)
 
     case_house_dfs: Dict[str, Dict[str, pd.DataFrame]] = {}
@@ -161,7 +198,7 @@ def make_comparisons(
                 dfs_for_house,
                 variable=var,
                 outpath=out_png,
-                title=f"Compare {var} | {house_id}",
+                title=f"{plotset_name} | {var} | {house_id}",
                 dt_hours_by_case=dt_by_case,
             )
         print(f"[OK] comparisons: timeseries for {house_id}")
@@ -178,6 +215,8 @@ def make_comparisons(
             "E_dis_kWh",
             "E_end_kWh",
             "E_simul_imp_exp_kWh",
+            "P_imp_max_kW",
+            "P_net_grid_max_kW",
         ]
         metric_list = [m for m in preferred if m in metrics_all.columns]
 
@@ -191,16 +230,35 @@ def make_comparisons(
 
             for metric in metric_list:
                 out_png = bar_root / f"bar_{metric}_house_{house_id}.png"
-                plot_compare_metrics(sub, metric=metric, outpath=out_png, title=f"{metric} | {house_id}")
+                plot_compare_metrics(sub, metric=metric, outpath=out_png, title=f"{plotset_name} | {metric} | {house_id}")
 
         print(f"[OK] comparisons: metric bars saved to {bar_root}")
+
+    # FINAL RESULT: community ranking by total cost (time-derived)
+    if not metrics_all.empty:
+        try:
+            comm = metrics_all.xs(COMMUNITY_ID, level="house").copy()
+        except Exception:
+            comm = pd.DataFrame()
+
+        if not comm.empty and "Cost_total_EUR" in comm.columns:
+            comm_rank = comm.sort_values("Cost_total_EUR", ascending=True).copy()
+            out_rank = out_root / "final_ranking_community.csv"
+            comm_rank.to_csv(out_rank)
+
+            best_case = str(comm_rank.index[0])
+            (out_root / "best_case.txt").write_text(
+                f"Best case by community Cost_total_EUR: {best_case}\n"
+                f"Cost_total_EUR = {comm_rank.iloc[0]['Cost_total_EUR']}\n",
+                encoding="utf-8",
+            )
+            print(f"[OK] final ranking: {out_rank}")
 
     print(f"[OK] comparisons root: {comp_root}")
 
 
 def make_plots_all(plotset_yaml: str | Path) -> None:
     ps = load_plotset_yaml(plotset_yaml)
-
     plotset_name = str(ps.get("plotset", Path(plotset_yaml).stem))
 
     cases_base_dir = Path(ps.get("cases_base_dir", "cases"))
@@ -218,16 +276,18 @@ def make_plots_all(plotset_yaml: str | Path) -> None:
     plots_cfg = ps.get("plots", {}) if isinstance(ps.get("plots", {}), dict) else {}
     do_per_case = bool(plots_cfg.get("per_case", True))
     do_comparisons = bool(plots_cfg.get("comparisons", True))
-    include_comm_per_case = bool(plots_cfg.get("include_community_per_case", False))
+    include_comm_per_case = bool(plots_cfg.get("include_community_per_case", True))
+
+    # new final output location
+    out_root = outputs_dir / "_plots" / plotset_name
+    out_root.mkdir(parents=True, exist_ok=True)
 
     case_items = ps.get("cases", [])
     if not isinstance(case_items, list) or not case_items:
         raise ValueError("plotset.cases must be a non-empty list of case YAML files")
 
     print(f"[PLOTSET] {plotset_name}")
-    print(f"[PLOTSET] cases base dir: {cases_base_dir.resolve()}")
-    print(f"[PLOTSET] outputs dir   : {outputs_dir.resolve()}")
-    print(f"[PLOTSET] per_case={do_per_case} comparisons={do_comparisons} include_comm_per_case={include_comm_per_case}")
+    print(f"[PLOTSET] out_root: {out_root.resolve()}")
     print("")
 
     cases_info: list[tuple[str, Path, float]] = []
@@ -236,14 +296,15 @@ def make_plots_all(plotset_yaml: str | Path) -> None:
         if not case_path.exists():
             raise FileNotFoundError(f"Case YAML not found: {case_path}")
 
-        case_name, dt_hours = get_case_name_and_dt(case_path)
+        case_name = get_case_name(case_path)
 
         if enabled_map.get(case_name, True) is False:
             print(f"[SKIP] {case_name} ({case_path.name})")
             continue
 
         case_out_dir = outputs_dir / case_name
-        cases_info.append((case_name, case_out_dir, dt_hours))
+        dt_hours = get_dt_hours(case_path, case_out_dir, dt_default=1.0)
+        cases_info.append((case_name, case_out_dir, float(dt_hours)))
 
     if not cases_info:
         print("[WARN] No enabled cases to plot.")
@@ -251,17 +312,21 @@ def make_plots_all(plotset_yaml: str | Path) -> None:
 
     if do_per_case:
         for case_name, case_out_dir, dt_hours in cases_info:
-            print(f"[PER-CASE] {case_name} -> {case_out_dir}")
             if not case_out_dir.exists():
                 print(f"[WARN] outputs folder not found: {case_out_dir} (run the case first)")
                 continue
-            make_per_case_plots(case_name, case_out_dir, dt_hours=dt_hours, include_community=include_comm_per_case)
-            print("")
+            make_per_case_plots(
+                case_name,
+                case_out_dir,
+                dt_hours=dt_hours,
+                out_root=out_root,
+                include_community=include_comm_per_case,
+            )
 
     if do_comparisons:
-        make_comparisons(plotset_name, outputs_dir, cases_info)
+        make_comparisons(plotset_name, out_root, cases_info)
 
-    print("[DONE] Plotset finished.")
+    print(f"[DONE] Plotset finished. Output in: {out_root}")
 
 
 if __name__ == "__main__":

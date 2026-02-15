@@ -1,7 +1,7 @@
 case: case_01_1house_baseline
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\cases_all\case_01_1house_baseline.yaml
-created_at: '2026-02-14T23:24:16.596303'
+created_at: '2026-02-15T14:51:28.760531'
 dt_hours: 1.0
 horizon: 500
 solver:

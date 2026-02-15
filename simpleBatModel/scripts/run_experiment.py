@@ -5,7 +5,6 @@ from pathlib import Path
 import argparse
 import yaml
 
-# ---- Spyder-proof: add src/ (and scripts/) to path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 SCRIPTS = ROOT / "scripts"

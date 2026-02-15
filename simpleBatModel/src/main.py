@@ -1,4 +1,3 @@
-# main.py
 from __future__ import annotations
 
 from BatSimpleModel import SimpleBatteryModel
@@ -16,21 +15,17 @@ if __name__ == "__main__":
     import os
     import pandas as pd
 
-    # --- Load data (important: header=None for your files) ---
     pv_df = pd.read_csv("Data/pv_gen.csv", header=None)
     load_df = pd.read_csv("Data/load_cons.csv", header=None)
 
-    # Choose ONE column, or aggregate:
     pv_series = pv_df.iloc[:500, 0]          # or: pv_df.sum(axis=1)
     load_series = load_df.iloc[:500, 0]      # or: load_df.sum(axis=1)
 
     T = len(load_series)
 
-    # --- Prices (must be length T) ---
     c_grid = [0.25] * T   # buy price €/kWh (example)
     c_sell = [0.05] * T   # sell price €/kWh (example)
 
-    # --- Battery parameters (example; adjust to your case) ---
     params = dict(
         dt=1.0,
         P_ch_max=2.0,
@@ -53,10 +48,8 @@ if __name__ == "__main__":
         tee=False
     )
 
-    # Save results table
     os.makedirs("plots", exist_ok=True)
     df.to_csv("plots/results.csv", index=False)
 
-    # Plot + save
     from ploty import make_plot_simple
     make_plot_simple(df, outpath="plots/simple_battery.png")

@@ -1,7 +1,7 @@
 case: case_02_1house_bigbattery
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\cases_all\case_02_1house_bigbattery.yaml
-created_at: '2026-02-14T23:24:17.830476'
+created_at: '2026-02-15T14:51:29.919856'
 dt_hours: 1.0
 horizon: 500
 solver:

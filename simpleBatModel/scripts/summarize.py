@@ -6,7 +6,6 @@ import argparse
 import yaml
 import pandas as pd
 
-# ---- Spyder-proof: add src/ to path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:

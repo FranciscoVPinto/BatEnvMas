@@ -5,7 +5,6 @@ import pyomo.environ as pyo
 
 
 def _v(x):
-    # robust numeric extraction
     try:
         return float(pyo.value(x))
     except Exception:

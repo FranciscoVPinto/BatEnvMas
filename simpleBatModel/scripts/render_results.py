@@ -1,4 +1,3 @@
-# scripts/make_plots_all.py
 from __future__ import annotations
 
 import sys
@@ -8,7 +7,6 @@ from typing import Dict, Tuple
 import yaml
 import pandas as pd
 
-# -------- Spyder-proof imports: ensure src/ is on sys.path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:

@@ -6,7 +6,6 @@ import argparse
 import datetime as dt
 import yaml
 
-# ---- Spyder-proof: add src/ to path
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 if str(SRC) not in sys.path:
@@ -60,15 +59,12 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
     houses_cfg = cfg.get("houses", {})
     house_ids = [str(h) for h in houses_cfg.keys()]
 
-    # Output folder
     outputs_dir_path = _abs_from_root(outputs_dir)
     out_case = outputs_dir_path / case_name
     _ensure_dir(out_case)
 
-    # Tariffs
     c_grid, c_sell = build_tariffs(cfg, T)
 
-    # Solver
     solver_cfg = cfg.get("solver", {})
     solver_name = "highs"
     solver_options = None
@@ -76,7 +72,6 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
         solver_name = solver_cfg.get("name", "highs")
         solver_options = solver_cfg.get("options", None)
 
-    # ---------- Carrega loads (1x) para suportar fallback por consumo e evitar reler CSVs
     loads_by_house: dict[str, list[float]] = {}
     for hid in house_ids:
         load_path = loads_cfg.get(hid)
@@ -84,7 +79,6 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
             raise ValueError(f"House '{hid}' missing in data.loads mapping")
         loads_by_house[hid] = load_series_csv_1col(_abs_from_root(load_path), T=T)
 
-    # ---------- PV preprocessing (per-house PV OU shared PV com alpha/fallback)
     pv_by_house, pv_info, pv_debug = prepare_pv_by_house(
         cfg,
         houses=house_ids,
@@ -93,7 +87,6 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
         loads_by_house=loads_by_house,
     )
 
-    # ---------- Export de artefactos do preprocess (audit)
     preprocess_dir = out_case / "preprocess"
     _ensure_dir(preprocess_dir)
     preprocess_files = {}
@@ -125,7 +118,6 @@ def run_case(case_yaml: str | Path, outputs_dir: str | Path = "results", tee: bo
                     _write_1col_csv(p, pv_by_house[hid])
                     preprocess_files[f"pv_alloc_{hid}"] = str(p)
 
-    # ---------- Resolve cada casa independentemente
     solved = []
     for hid, hparams in houses_cfg.items():
         hid = str(hid)

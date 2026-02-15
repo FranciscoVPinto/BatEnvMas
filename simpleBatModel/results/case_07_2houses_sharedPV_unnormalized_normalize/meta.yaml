@@ -1,7 +1,7 @@
 case: case_07_2houses_sharedPV_unnormalized_normalize
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\cases_all\case_07_2houses_sharedPV_unnormalized_normalize.yaml
-created_at: '2026-02-14T23:24:30.163530'
+created_at: '2026-02-15T14:51:41.522556'
 dt_hours: 1.0
 horizon: 500
 solver:

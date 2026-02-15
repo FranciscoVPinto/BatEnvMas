@@ -1,7 +1,7 @@
 case: case_sharedPV_fallback_instant
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\cases_all\case_sharedPV_fallback_instant.yaml
-created_at: '2026-02-14T23:24:35.268560'
+created_at: '2026-02-15T14:51:46.297863'
 dt_hours: 1.0
 horizon: 500
 solver:

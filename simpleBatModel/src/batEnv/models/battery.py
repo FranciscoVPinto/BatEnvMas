@@ -18,10 +18,8 @@ class SimpleBatteryModel:
     This class only builds a Pyomo ConcreteModel from already-loaded series.
     """
 
-    # timing
     dt: float  # hours
 
-    # battery
     E_init: float
     E_min: float
     E_max: float
@@ -30,7 +28,6 @@ class SimpleBatteryModel:
     eta_ch: float
     eta_dis: float
 
-    # grid
     P_grid_max: float
 
     def make_instance(
@@ -46,11 +43,9 @@ class SimpleBatteryModel:
 
         m = pyo.ConcreteModel()
 
-        # Sets
         m.T = pyo.RangeSet(1, T)
         m.TE = pyo.RangeSet(0, T)
 
-        # Parameters (scalar)
         m.dt = pyo.Param(initialize=float(self.dt))
         m.E_init = pyo.Param(initialize=float(self.E_init))
         m.E_min = pyo.Param(initialize=float(self.E_min))
@@ -61,24 +56,20 @@ class SimpleBatteryModel:
         m.eta_dis = pyo.Param(initialize=float(self.eta_dis))
         m.P_grid_max = pyo.Param(initialize=float(self.P_grid_max))
 
-        # Parameters (time series)
         m.Load = pyo.Param(m.T, initialize=_to_1_indexed_dict(load), within=pyo.NonNegativeReals)
         m.PV = pyo.Param(m.T, initialize=_to_1_indexed_dict(pv), within=pyo.NonNegativeReals)
         m.c_grid = pyo.Param(m.T, initialize=_to_1_indexed_dict(c_grid), within=pyo.NonNegativeReals)
         m.c_sell = pyo.Param(m.T, initialize=_to_1_indexed_dict(c_sell), within=pyo.NonNegativeReals)
 
-        # Variables
         m.P_ch = pyo.Var(m.T, within=pyo.NonNegativeReals)
         m.P_dis = pyo.Var(m.T, within=pyo.NonNegativeReals)
         m.P_imp = pyo.Var(m.T, within=pyo.NonNegativeReals)
         m.P_exp = pyo.Var(m.T, within=pyo.NonNegativeReals)
         m.E = pyo.Var(m.TE, within=pyo.NonNegativeReals)
 
-        # Binary mode vars
         m.x = pyo.Var(m.T, within=pyo.Binary)  # charge vs discharge
         m.y = pyo.Var(m.T, within=pyo.Binary)  # import vs export
 
-        # Constraints
         def init_energy_rule(mm):
             return mm.E[0] == mm.E_init
 
@@ -117,7 +108,6 @@ class SimpleBatteryModel:
 
         m.power_balance = pyo.Constraint(m.T, rule=power_balance_rule)
 
-        # Objective
         def obj_rule(mm):
             return sum((mm.c_grid[t] * mm.P_imp[t] - mm.c_sell[t] * mm.P_exp[t]) * mm.dt for t in mm.T)
 

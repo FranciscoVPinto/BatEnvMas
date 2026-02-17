@@ -40,15 +40,7 @@ def _write_1col_csv(path: Path, series: list[float]):
 
 
 def _apply_time_override(cfg: dict, time_override: dict | None) -> tuple[dict, dict, list[str]]:
-    """
-    Applies runset-level time defaults (e.g., horizon) to the case cfg.
 
-    Policy:
-      - If override defines a field, it always wins.
-      - If the case defines a different value, we overwrite and record a warning.
-
-    This lets you centralize horizon in the runset without editing all case YAMLs.
-    """
     if not time_override:
         return cfg, {}, []
 
@@ -125,6 +117,12 @@ def run_case(
             print(f"[WARN] {case_name}: {w}")
 
     c_grid, c_sell = build_tariffs(cfg, T)
+
+    # Grid export switch (case-level): if False, export is prohibited (P_exp == 0)
+    grid_cfg = cfg.get("grid", {}) if isinstance(cfg.get("grid", {}), dict) else {}
+    # Backwards-compatible: allow_export may also be placed under tariffs.*
+    tariffs_cfg = cfg.get("tariffs", {}) if isinstance(cfg.get("tariffs", {}), dict) else {}
+    allow_export = bool(grid_cfg.get("allow_export", tariffs_cfg.get("allow_export", True)))
 
     solver_cfg = cfg.get("solver", {})
     solver_name = "highs"
@@ -211,6 +209,7 @@ def run_case(
             eta_ch=eta_ch,
             eta_dis=eta_dis,
             P_grid_max=float(batt_cfg["P_grid_max"]),
+            allow_export=allow_export,
         )
 
         m = builder.make_instance(load=load, pv=pv, c_grid=c_grid, c_sell=c_sell)
@@ -240,11 +239,12 @@ def run_case(
         "time_override_used": time_used_from_override,
         "time_override_warnings": time_override_warnings,
         "solver": {"name": solver_name, "options": solver_options},
+        "grid": {"allow_export": bool(allow_export)},
         "canonicalize_warnings": canon_warnings,
         "pv_preprocess": pv_info,
         "preprocess_files": preprocess_files,
         "houses": solved,
-        "notes": "CSVs generated only. Run scripts/make_plots_all.py to generate plots.",
+        "notes": "CSVs generated only. Run scripts/render_results.py to generate plots/comparisons.",
     }
 
     with (out_case / "meta.yaml").open("w", encoding="utf-8") as f:

@@ -1,0 +1,45 @@
+case: pv02_weighted_export
+
+data:
+  pv_total: data/pv_gen.csv
+  loads:
+    A: data/load_1.csv
+    B: data/load_2.csv
+    C: data/load_3.csv
+    D: data/load_4.csv
+
+tariffs:
+  grid_buy: 0.25
+  grid_sell: 0.05
+
+
+grid:
+  allow_export: true
+
+sharing:
+  mode: fixed_alpha
+  alpha:
+    A: 0.40
+    B: 0.30
+    C: 0.20
+    D: 0.10
+  normalize: false
+  strict_sum_to_one: true
+
+
+battery_default: &BAT
+  E_init: 2.5
+  E_min: 0.0
+  E_max: 5.0
+  P_ch_max: 2.0
+  P_dis_max: 2.0
+  eta_ch: 0.95
+  eta_dis: 0.95
+  P_grid_max: 10.0
+
+houses:
+  A: { battery: *BAT }
+  B: { battery: *BAT }
+  C: { battery: *BAT }
+  D: { battery: *BAT }
+

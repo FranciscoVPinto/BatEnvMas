@@ -1,0 +1,71 @@
+case: pv06_weighted_no_export
+case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+  Mec\Tese\BatEnvMas\simpleBatModel\cases\cases_all\pv06_weighted_no_export.yaml
+created_at: '2026-02-17T16:07:19.800878'
+dt_hours: 0.25
+horizon: 2688
+start: 2025-01-01 00:00
+time_override_used:
+  horizon: 2688
+  dt_hours: 0.25
+  start: 2025-01-01 00:00
+time_override_warnings: []
+solver:
+  name: highs
+  options: null
+grid:
+  allow_export: false
+canonicalize_warnings: []
+pv_preprocess:
+  warnings: []
+  mode: shared_alpha
+  normalize: false
+  strict_sum_to_one: true
+  fallback:
+    mode: none
+    apply_when: invalid_or_missing
+    zero_denom: equal_split
+  alpha_sum: 0.9999999999999999
+preprocess_files:
+  pv_total: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\pv_total.csv
+  alpha_sum: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\alpha_sum.csv
+  alpha_used_A: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\alpha_used_A.csv
+  pv_alloc_A: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\pv_alloc_A.csv
+  alpha_used_B: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\alpha_used_B.csv
+  pv_alloc_B: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\pv_alloc_B.csv
+  alpha_used_C: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\alpha_used_C.csv
+  pv_alloc_C: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\pv_alloc_C.csv
+  alpha_used_D: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\alpha_used_D.csv
+  pv_alloc_D: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+    Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\preprocess\pv_alloc_D.csv
+houses:
+- house: A
+  csv: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\results_house_A.csv
+  solver: highs
+  termination_condition: optimal
+  status: ok
+- house: B
+  csv: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\results_house_B.csv
+  solver: highs
+  termination_condition: optimal
+  status: ok
+- house: C
+  csv: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\results_house_C.csv
+  solver: highs
+  termination_condition: optimal
+  status: ok
+- house: D
+  csv: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia Mec\Tese\BatEnvMas\simpleBatModel\results\pv06_weighted_no_export\results_house_D.csv
+  solver: highs
+  termination_condition: optimal
+  status: ok
+notes: CSVs generated only. Run scripts/render_results.py to generate plots/comparisons.

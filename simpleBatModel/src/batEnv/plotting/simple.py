@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ def _ensure_derived(df: pd.DataFrame, dt_hours: float) -> pd.DataFrame:
     """
     out = df.copy()
 
-    for c in ["P_imp", "P_exp", "P_ch", "P_dis", "Load", "PV", "E", "c_grid", "c_sell"]:
+    for c in ["P_imp", "P_exp", "P_ch", "P_dis", "P_curt", "Load", "PV", "E", "c_grid", "c_sell"]:
         if c in out.columns:
             out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0.0)
 
@@ -53,6 +53,10 @@ def compute_summary_metrics(df: pd.DataFrame, dt_hours: float) -> Dict[str, Any]
     out["E_exp_kWh"] = _E("P_exp")
     out["E_ch_kWh"] = _E("P_ch")
     out["E_dis_kWh"] = _E("P_dis")
+    out["E_curt_kWh"] = _E("P_curt")
+
+    if out["E_pv_kWh"] > 0:
+        out["Curt_frac_of_PV"] = float(out["E_curt_kWh"] / out["E_pv_kWh"])
 
     if "E" in d.columns and len(d["E"]) > 0:
         out["E_end_kWh"] = float(d["E"].iloc[-1])
@@ -108,6 +112,8 @@ def plot_house_per_case(
         ax1.plot(x, d["Load"].to_numpy(), label="Load (kW)")
     if "PV" in d.columns:
         ax1.plot(x, d["PV"].to_numpy(), label="PV (kW)")
+    if "P_curt" in d.columns:
+        ax1.plot(x, d["P_curt"].to_numpy(), label="PV curtailed P_curt (kW)")
     ax1.set_ylabel("kW")
     ax1.set_title(title or "House")
     ax1.legend()

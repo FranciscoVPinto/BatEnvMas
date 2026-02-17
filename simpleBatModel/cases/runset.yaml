@@ -1,42 +1,32 @@
-runset: experiments_all_8
+runset: pv_study
 cases_base_dir: cases/cases_all
 cases:
-- case_01_1house_baseline.yaml
-- case_02_1house_bigbattery.yaml
-- case_03_2houses_baseline.yaml
-- case_04_2houses_bigB.yaml
-- case_05_2houses_sharedPV_equal.yaml
-- case_06_2houses_sharedPV_weighted_70_30.yaml
-- case_07_2houses_sharedPV_unnormalized_normalize.yaml
-- case_08_2houses_sharedPV_equal_high_price.yaml
-- case_sharedPV_fallback_instant.yaml
-- case_sharedPV_fallback_mean.yaml
-- case_tariff_bihoraria_15min.yaml
-- case_tariff_week_weekend_15min.yaml
-- case_tariff_monthly_15min.yaml
+  - pv01_equal_export.yaml
+  - pv02_weighted_export.yaml
+  - pv03_dyn_instant_export.yaml
+  - pv04_dyn_mean_export.yaml
+  - pv05_equal_no_export.yaml
+  - pv06_weighted_no_export.yaml
+  - pv07_dyn_instant_no_export.yaml
+  - pv08_dyn_mean_no_export.yaml
 
 enabled:
-  case_01_1house_baseline: true
-  case_02_1house_bigbattery: true
-  case_03_2houses_baseline: true
-  case_04_2houses_bigB: true
-  case_05_2houses_sharedPV_equal: true
-  case_06_2houses_sharedPV_weighted_70_30: true
-  case_07_2houses_sharedPV_unnormalized_normalize: true
-  case_08_2houses_sharedPV_equal_high_price: true
-  case_sharedPV_fallback_instant: true
-  case_sharedPV_fallback_mean: true
-  case_tariff_bihoraria_15min: true
-  case_tariff_week_weekend_15min: true
-  case_tariff_monthly_15min: true
+  pv01_equal_export: true
+  pv02_weighted_export: true
+  pv03_dyn_instant_export: true
+  pv04_dyn_mean_export: true
+  pv05_equal_no_export: true
+  pv06_weighted_no_export: true
+  pv07_dyn_instant_no_export: true
+  pv08_dyn_mean_no_export: true
 
 defaults:
   outputs_dir: results
   tee: false
+  time:
+    horizon: 2688
+    dt_hours: 0.25
+    start: 2025-01-01 00:00
   solver:
     name: highs
     options: {}
-  time:
-    horizon: 5000
-    dt_hours: 0.25
-    start: 2025-01-01 00:00

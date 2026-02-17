@@ -14,7 +14,7 @@ def aggregate_community_timeseries(house_dfs: Dict[str, pd.DataFrame]) -> pd.Dat
     Agrega vários results_house_*.csv num dataframe sintético da comunidade.
 
     Produz (pelo menos):
-      t, Load, PV, P_imp, P_exp, P_ch, P_dis, E, c_grid, c_sell, P_simul_imp_exp
+      t, Load, PV, P_imp, P_exp, P_ch, P_dis, P_curt, E, c_grid, c_sell, P_simul_imp_exp
 
     Notas:
       - E é soma do armazenamento total (se existir E nos dfs).
@@ -30,7 +30,7 @@ def aggregate_community_timeseries(house_dfs: Dict[str, pd.DataFrame]) -> pd.Dat
 
     out = pd.DataFrame({"t": ref["t"].astype(int)})
 
-    sum_cols = ["Load", "PV", "P_imp", "P_exp", "P_ch", "P_dis", "E"]
+    sum_cols = ["Load", "PV", "P_imp", "P_exp", "P_ch", "P_dis", "P_curt", "E"]
     passthrough_cols = ["c_grid", "c_sell"]
 
     for col in sum_cols:
@@ -74,6 +74,13 @@ def compute_community_extra_metrics(df_comm: pd.DataFrame, dt_hours: float) -> D
         Eexp = float(df_comm["P_exp"].sum() * dt_hours)
         out["E_imp_kWh_COMM"] = Eimp
         out["E_exp_kWh_COMM"] = Eexp
+        if "P_curt" in df_comm.columns:
+            Ecurt = float(df_comm["P_curt"].sum() * dt_hours)
+            out["E_curt_kWh_COMM"] = Ecurt
+            if "PV" in df_comm.columns:
+                Epv = float(df_comm["PV"].sum() * dt_hours)
+                if Epv > 0:
+                    out["Curt_frac_of_PV_COMM"] = float(Ecurt / Epv)
         if Eimp > 0:
             out["Simul_frac_of_import"] = float(out.get("E_simul_imp_exp_kWh", 0.0) / Eimp)
 

@@ -1,0 +1,72 @@
+COMPARAÇÃO ENTRE CASOS — PV Study v2
+=================================
+
+Objetivo: comparar apenas formas de usar/partilhar PV mantendo tudo o resto fixo
+(cargas, PV_total, bateria, dt, horizonte e preços de compra).
+
+Matriz experimental (4 regras de partilha × exportação ON/OFF)
+-------------------------------------------------------------
+
+Legenda:
+- Sharing = regra de alocação do PV_total às casas
+- Export = grid.allow_export (true permite exportar; false proíbe exportar)
+- Curtailment (P_curt) entra no modelo para absorver excesso quando export=OFF
+  ou quando PV excede (carga + capacidade de carga da bateria).
+
+Casos:
+
+1) pv01_equal_export
+   Sharing: equal split (25/25/25/25)
+   Export: ON
+   Expectativa: baseline simples; excedentes vão para export quando bateria cheia.
+
+2) pv02_weighted_export
+   Sharing: pesos fixos (40/30/20/10)
+   Export: ON
+   Expectativa: beneficia a casa com maior peso; mede impacto distributivo.
+
+3) pv03_dyn_instant_export
+   Sharing: dinâmico por consumo instantâneo (proporcional a Load[t])
+   Export: ON
+   Expectativa: tende a reduzir export e import agregados (PV vai onde há carga no momento).
+
+4) pv04_dyn_mean_export
+   Sharing: dinâmico por consumo médio (peso fixo calculado por média)
+   Export: ON
+   Expectativa: parecido com weighted mas derivado dos perfis reais de consumo.
+
+5) pv05_equal_no_export
+   Sharing: equal split
+   Export: OFF
+   Expectativa: mais curtailment; mais carregamento em horas PV; export=0 sempre.
+
+6) pv06_weighted_no_export
+   Sharing: pesos fixos
+   Export: OFF
+   Expectativa: curtailment concentrado em casas com maior quota quando não conseguem absorver.
+
+7) pv07_dyn_instant_no_export
+   Sharing: dinâmico instantâneo
+   Export: OFF
+   Expectativa: reduz curtailment ao empurrar PV para onde há carga imediata.
+
+8) pv08_dyn_mean_no_export
+   Sharing: dinâmico médio
+   Export: OFF
+   Expectativa: intermédio entre weighted e dinâmico instantâneo.
+
+Métricas recomendadas para tirar conclusões
+-------------------------------------------
+- Cost_total_EUR (por casa e comunidade)
+- E_imp_kWh / E_exp_kWh (por casa e comunidade)
+- E_curt_kWh e Curt_frac_of_PV (para export=OFF é crítico)
+- Autoconsumo ~ (E_pv - E_exp - E_curt)/E_pv
+- Autossuficiência ~ 1 - E_imp/E_load
+- Equidade: distribuição de poupança (diferença entre casas)
+
+Como correr
+-----------
+- Executar batch:
+    python scripts/run_experiment.py cases/runset.yaml
+- Gerar plots/comparações:
+    python scripts/render_results.py cases/plotset.yaml

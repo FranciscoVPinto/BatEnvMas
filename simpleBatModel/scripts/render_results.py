@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Dict, Tuple, Any, Optional
+from typing import Dict
 
 import yaml
 import pandas as pd

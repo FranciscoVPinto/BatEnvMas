@@ -51,16 +51,15 @@ def _deep_merge(base: dict, override: dict) -> dict:
 
 
 def _resolve_from(yaml_path: Path, maybe_rel: str | Path) -> Path:
-    """
-    Resolve a path referenced inside a YAML file.
-    ONLY relative to the YAML directory (no ROOT fallback),
-    so path mistakes are obvious and consistent.
-    """
     p = Path(maybe_rel)
     if p.is_absolute():
         return p.resolve()
-    return (yaml_path.parent / p).resolve()
 
+    cand = (yaml_path.parent / p).resolve()
+    if cand.exists():
+        return cand
+
+    return (ROOT / p).resolve()
 
 def _is_parent_plotset(cfg: dict) -> bool:
     """

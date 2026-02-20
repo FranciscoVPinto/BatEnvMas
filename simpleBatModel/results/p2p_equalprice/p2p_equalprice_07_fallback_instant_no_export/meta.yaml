@@ -1,7 +1,7 @@
 case: p2p_equalprice_07_fallback_instant_no_export
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\scenarios\p2p\equalprice\p2p_equalprice_07_fallback_instant_no_export.yaml
-created_at: '2026-02-18T00:03:13.894469'
+created_at: '2026-02-20T10:25:54.013852'
 mode: multi_house_energy_sharing
 dt_hours: 0.25
 horizon: 2500

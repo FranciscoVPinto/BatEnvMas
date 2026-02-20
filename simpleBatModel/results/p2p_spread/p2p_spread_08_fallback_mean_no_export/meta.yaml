@@ -1,7 +1,7 @@
 case: p2p_spread_08_fallback_mean_no_export
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\scenarios\p2p\spread\p2p_spread_08_fallback_mean_no_export.yaml
-created_at: '2026-02-18T00:05:08.352021'
+created_at: '2026-02-20T10:27:47.714795'
 mode: multi_house_energy_sharing
 dt_hours: 0.25
 horizon: 2500

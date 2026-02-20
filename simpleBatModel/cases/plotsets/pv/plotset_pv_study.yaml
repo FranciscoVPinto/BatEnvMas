@@ -1,6 +1,6 @@
 plotset: pv_study
 cases_base_dir: cases/scenarios/pv/study
-outputs_dir: results
+outputs_dir: results/pv_study
 cases:
 - pv01_equal_export.yaml
 - pv02_weighted_export.yaml

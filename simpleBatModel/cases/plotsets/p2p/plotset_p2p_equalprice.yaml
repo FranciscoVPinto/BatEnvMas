@@ -1,6 +1,6 @@
 plotset: p2p_equalprice
 cases_base_dir: cases/scenarios/p2p/equalprice
-outputs_dir: results
+outputs_dir: results/p2p_equalprice
 cases:
 - p2p_equalprice_01_equal_export.yaml
 - p2p_equalprice_02_weighted_export.yaml

@@ -1,7 +1,7 @@
 case: p2p_spread_02_weighted_export
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\scenarios\p2p\spread\p2p_spread_02_weighted_export.yaml
-created_at: '2026-02-18T00:03:54.497380'
+created_at: '2026-02-20T10:26:34.344057'
 mode: multi_house_energy_sharing
 dt_hours: 0.25
 horizon: 2500

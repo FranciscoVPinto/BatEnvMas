@@ -1,6 +1,6 @@
 plotset: p2p_spread
 cases_base_dir: cases/scenarios/p2p/spread
-outputs_dir: results
+outputs_dir: results/p2p_spread
 cases:
 - p2p_spread_01_equal_export.yaml
 - p2p_spread_02_weighted_export.yaml

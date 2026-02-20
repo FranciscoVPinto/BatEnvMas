@@ -19,8 +19,8 @@ from batEnv.io import (
     canonicalize_case_cfg,
     validate_case_cfg_basic,
 )
-from batEnv.models import SimpleBatteryModel
-from batEnv.utils import solve_model, model_to_dataframe
+from batEnv.models import SimpleBatteryModel, MultiHouseEnergySharingModel
+from batEnv.utils import solve_model, model_to_dataframe, multi_model_to_dataframes
 
 
 def _ensure_dir(p: Path):
@@ -40,7 +40,6 @@ def _write_1col_csv(path: Path, series: list[float]):
 
 
 def _apply_time_override(cfg: dict, time_override: dict | None) -> tuple[dict, dict, list[str]]:
-
     if not time_override:
         return cfg, {}, []
 
@@ -80,22 +79,49 @@ def _apply_time_override(cfg: dict, time_override: dict | None) -> tuple[dict, d
     return cfg, used, warnings
 
 
-def run_case(
-    case_yaml: str | Path,
+def _price_series(val, T: int) -> list[float]:
+    """
+    Accepts:
+      - scalar -> constant series
+      - list/tuple -> truncated/padded to T
+      - string -> path to 1-col csv (relative to project root)
+      - None -> zeros
+    """
+    if val is None:
+        return [0.0] * T
+    if isinstance(val, (int, float)):
+        return [float(val)] * T
+    if isinstance(val, (list, tuple)):
+        arr = [float(x) for x in val]
+        if len(arr) >= T:
+            return arr[:T]
+        return arr + [arr[-1]] * (T - len(arr)) if arr else [0.0] * T
+    if isinstance(val, str):
+        return load_series_csv_1col(_abs_from_root(val), T=T)
+    raise ValueError(f"Unsupported price series type: {type(val)}")
+
+
+def run_case_cfg(
+    cfg_raw: dict,
+    *,
+    case_yaml_path: str | Path | None = None,
     outputs_dir: str | Path = "results",
     tee: bool = False,
-    *,
     time_override: dict | None = None,
+    case_name_override: str | None = None,
 ):
-    case_yaml_path = _abs_from_root(case_yaml)
-    cfg_raw = load_case_yaml(case_yaml_path)
-
+    """
+    Run a case from an already-loaded config dict (useful in Spyder).
+    """
     cfg, canon_warnings = canonicalize_case_cfg(cfg_raw)
     validate_case_cfg_basic(cfg)
 
     cfg, time_used_from_override, time_override_warnings = _apply_time_override(cfg, time_override)
 
-    case_name = str(cfg.get("case", None) or Path(case_yaml_path).stem)
+    if case_name_override:
+        case_name = str(case_name_override)
+    else:
+        case_name = str(cfg.get("case", None) or (Path(case_yaml_path).stem if case_yaml_path else "case"))
 
     time_cfg = cfg.get("time", {}) if isinstance(cfg.get("time", {}), dict) else {}
     dt_hours = float(time_cfg.get("dt_hours", 1.0))
@@ -118,9 +144,7 @@ def run_case(
 
     c_grid, c_sell = build_tariffs(cfg, T)
 
-    # Grid export switch (case-level): if False, export is prohibited (P_exp == 0)
     grid_cfg = cfg.get("grid", {}) if isinstance(cfg.get("grid", {}), dict) else {}
-    # Backwards-compatible: allow_export may also be placed under tariffs.*
     tariffs_cfg = cfg.get("tariffs", {}) if isinstance(cfg.get("tariffs", {}), dict) else {}
     allow_export = bool(grid_cfg.get("allow_export", tariffs_cfg.get("allow_export", True)))
 
@@ -177,62 +201,142 @@ def run_case(
                     _write_1col_csv(p, pv_by_house[hid])
                     preprocess_files[f"pv_alloc_{hid}"] = str(p)
 
+    es_cfg = cfg.get("energy_sharing", {}) if isinstance(cfg.get("energy_sharing", {}), dict) else {}
+    sharing_enabled = bool(es_cfg.get("enabled", False))
+    P_share_max = float(es_cfg.get("P_share_max", 0.0) or 0.0)
+
+    p2p_buy = _price_series(es_cfg.get("price_buy", 0.0), T) if sharing_enabled else [0.0] * T
+    p2p_sell = _price_series(es_cfg.get("price_sell", 0.0), T) if sharing_enabled else [0.0] * T
+    p2p_fee = _price_series(es_cfg.get("transaction_fee", 0.0), T) if sharing_enabled else [0.0] * T
+    settlement_in_objective = bool(es_cfg.get("settlement_in_objective", False))
+
     solved = []
-    for hid, hparams in houses_cfg.items():
-        hid = str(hid)
 
-        load = loads_by_house[hid]
-        pv = pv_by_house[hid]
+    if sharing_enabled:
+        battery_params_by_house: dict[str, dict[str, float]] = {}
+        for hid, hparams in houses_cfg.items():
+            hid = str(hid)
+            batt_cfg = hparams.get("battery", {})
+            if not isinstance(batt_cfg, dict):
+                raise ValueError(f"houses.{hid}.battery must be a dict")
 
-        batt_cfg = hparams.get("battery", {})
-        if not isinstance(batt_cfg, dict):
-            raise ValueError(f"houses.{hid}.battery must be a dict")
+            E_init = float(batt_cfg["E_init"])
+            E_min = float(batt_cfg["E_min"])
+            E_max = float(batt_cfg["E_max"])
+            if not (E_min <= E_init <= E_max):
+                raise ValueError(f"House {hid}: require E_min <= E_init <= E_max (got {E_min}, {E_init}, {E_max})")
 
-        E_init = float(batt_cfg["E_init"])
-        E_min = float(batt_cfg["E_min"])
-        E_max = float(batt_cfg["E_max"])
-        if not (E_min <= E_init <= E_max):
-            raise ValueError(f"House {hid}: require E_min <= E_init <= E_max (got {E_min}, {E_init}, {E_max})")
+            eta_ch = float(batt_cfg["eta_ch"])
+            eta_dis = float(batt_cfg["eta_dis"])
+            if not (0 < eta_ch <= 1 and 0 < eta_dis <= 1):
+                raise ValueError(f"House {hid}: eta_ch/eta_dis must be in (0,1] (got {eta_ch}, {eta_dis})")
 
-        eta_ch = float(batt_cfg["eta_ch"])
-        eta_dis = float(batt_cfg["eta_dis"])
-        if not (0 < eta_ch <= 1 and 0 < eta_dis <= 1):
-            raise ValueError(f"House {hid}: eta_ch/eta_dis must be in (0,1] (got {eta_ch}, {eta_dis})")
-
-        builder = SimpleBatteryModel(
-            dt=dt_hours,
-            E_init=E_init,
-            E_min=E_min,
-            E_max=E_max,
-            P_ch_max=float(batt_cfg["P_ch_max"]),
-            P_dis_max=float(batt_cfg["P_dis_max"]),
-            eta_ch=eta_ch,
-            eta_dis=eta_dis,
-            P_grid_max=float(batt_cfg["P_grid_max"]),
-            allow_export=allow_export,
-        )
-
-        m = builder.make_instance(load=load, pv=pv, c_grid=c_grid, c_sell=c_sell)
-        results = solve_model(m, solver=solver_name, options=solver_options, tee=tee)
-        df = model_to_dataframe(m)
-
-        out_csv = out_case / f"results_house_{hid}.csv"
-        df.to_csv(out_csv, index=False)
-
-        solved.append(
-            {
-                "house": hid,
-                "csv": str(out_csv),
-                "solver": str(solver_name),
-                "termination_condition": str(getattr(results.solver, "termination_condition", "")),
-                "status": str(getattr(results.solver, "status", "")),
+            battery_params_by_house[hid] = {
+                "E_init": E_init,
+                "E_min": E_min,
+                "E_max": E_max,
+                "P_ch_max": float(batt_cfg["P_ch_max"]),
+                "P_dis_max": float(batt_cfg["P_dis_max"]),
+                "eta_ch": eta_ch,
+                "eta_dis": eta_dis,
+                "P_grid_max": float(batt_cfg["P_grid_max"]),
             }
+
+        builder = MultiHouseEnergySharingModel(
+            dt=dt_hours,
+            allow_export=allow_export,
+            P_share_max=P_share_max,
+            settlement_in_objective=settlement_in_objective,
         )
+        m = builder.make_instance(
+            loads_by_house=loads_by_house,
+            pv_by_house=pv_by_house,
+            battery_params_by_house=battery_params_by_house,
+            c_grid=c_grid,
+            c_sell=c_sell,
+            c_p2p_buy=p2p_buy,
+            c_p2p_sell=p2p_sell,
+            c_p2p_fee=p2p_fee,
+        )
+
+        results = solve_model(m, solver=solver_name, options=solver_options, tee=tee)
+        dfs = multi_model_to_dataframes(m)
+
+        for hid in house_ids:
+            df = dfs[hid]
+            out_csv = out_case / f"results_house_{hid}.csv"
+            df.to_csv(out_csv, index=False)
+            solved.append(
+                {
+                    "house": hid,
+                    "csv": str(out_csv),
+                    "solver": str(solver_name),
+                    "termination_condition": str(getattr(results.solver, "termination_condition", "")),
+                    "status": str(getattr(results.solver, "status", "")),
+                }
+            )
+
+        mode = "multi_house_energy_sharing"
+
+    else:
+        for hid, hparams in houses_cfg.items():
+            hid = str(hid)
+
+            load = loads_by_house[hid]
+            pv = pv_by_house[hid]
+
+            batt_cfg = hparams.get("battery", {})
+            if not isinstance(batt_cfg, dict):
+                raise ValueError(f"houses.{hid}.battery must be a dict")
+
+            E_init = float(batt_cfg["E_init"])
+            E_min = float(batt_cfg["E_min"])
+            E_max = float(batt_cfg["E_max"])
+            if not (E_min <= E_init <= E_max):
+                raise ValueError(f"House {hid}: require E_min <= E_init <= E_max (got {E_min}, {E_init}, {E_max})")
+
+            eta_ch = float(batt_cfg["eta_ch"])
+            eta_dis = float(batt_cfg["eta_dis"])
+            if not (0 < eta_ch <= 1 and 0 < eta_dis <= 1):
+                raise ValueError(f"House {hid}: eta_ch/eta_dis must be in (0,1] (got {eta_ch}, {eta_dis})")
+
+            builder = SimpleBatteryModel(
+                dt=dt_hours,
+                E_init=E_init,
+                E_min=E_min,
+                E_max=E_max,
+                P_ch_max=float(batt_cfg["P_ch_max"]),
+                P_dis_max=float(batt_cfg["P_dis_max"]),
+                eta_ch=eta_ch,
+                eta_dis=eta_dis,
+                P_grid_max=float(batt_cfg["P_grid_max"]),
+                allow_export=allow_export,
+            )
+
+            m = builder.make_instance(load=load, pv=pv, c_grid=c_grid, c_sell=c_sell)
+            results = solve_model(m, solver=solver_name, options=solver_options, tee=tee)
+            df = model_to_dataframe(m)
+
+            out_csv = out_case / f"results_house_{hid}.csv"
+            df.to_csv(out_csv, index=False)
+
+            solved.append(
+                {
+                    "house": hid,
+                    "csv": str(out_csv),
+                    "solver": str(solver_name),
+                    "termination_condition": str(getattr(results.solver, "termination_condition", "")),
+                    "status": str(getattr(results.solver, "status", "")),
+                }
+            )
+
+        mode = "single_house_independent"
 
     meta = {
         "case": case_name,
-        "case_yaml": str(case_yaml_path.resolve()),
+        "case_yaml": str(Path(case_yaml_path).resolve()) if case_yaml_path else None,
         "created_at": dt.datetime.now().isoformat(),
+        "mode": mode,
         "dt_hours": dt_hours,
         "horizon": T,
         "start": start,
@@ -240,6 +344,14 @@ def run_case(
         "time_override_warnings": time_override_warnings,
         "solver": {"name": solver_name, "options": solver_options},
         "grid": {"allow_export": bool(allow_export)},
+        "energy_sharing": {
+            "enabled": sharing_enabled,
+            "P_share_max": P_share_max,
+            "price_buy": es_cfg.get("price_buy", 0.0),
+            "price_sell": es_cfg.get("price_sell", 0.0),
+            "transaction_fee": es_cfg.get("transaction_fee", 0.0),
+            "settlement_in_objective": settlement_in_objective,
+        },
         "canonicalize_warnings": canon_warnings,
         "pv_preprocess": pv_info,
         "preprocess_files": preprocess_files,
@@ -251,6 +363,24 @@ def run_case(
         yaml.safe_dump(meta, f, sort_keys=False, allow_unicode=True)
 
     print(f"[OK] Case '{case_name}' finished. Outputs in: {out_case}")
+
+
+def run_case(
+    case_yaml: str | Path,
+    outputs_dir: str | Path = "results",
+    tee: bool = False,
+    *,
+    time_override: dict | None = None,
+):
+    case_yaml_path = _abs_from_root(case_yaml)
+    cfg_raw = load_case_yaml(case_yaml_path)
+    return run_case_cfg(
+        cfg_raw,
+        case_yaml_path=case_yaml_path,
+        outputs_dir=outputs_dir,
+        tee=tee,
+        time_override=time_override,
+    )
 
 
 def main():

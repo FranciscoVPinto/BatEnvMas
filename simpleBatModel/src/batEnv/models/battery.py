@@ -14,15 +14,15 @@ def _to_1_indexed_dict(arr: Sequence[float]) -> dict[int, float]:
 @dataclass
 class SimpleBatteryModel:
     """
-    Base MILP for a single house.
+    Single-house MILP (Load + PV + Battery + Grid), with:
+      - no simultaneous charge/discharge (binary x[t])
+      - no simultaneous import/export (binary y[t])
+      - PV curtailment (P_curt[t] >= 0)
+      - optional export prohibition via allow_export (forces P_exp[t] == 0)
 
-    Notes on PV handling:
-      - PV is provided as an exogenous time-series (mm.PV[t]).
-      - The model can now *curtail* PV (waste/discard it) via mm.P_curt[t] >= 0.
-        This is essential for realistic studies when export is not allowed or
-        when PV exceeds (load + battery charging capacity).
-      - Export can be enabled/disabled through allow_export. When disabled,
-        P_exp is forced to 0 (through an upper bound multiplied by kappa_exp=0).
+    Notes:
+      - All time-series inputs must have length T.
+      - Power variables are in kW, energy in kWh, dt in hours.
     """
 
     dt: float  # hours
@@ -69,7 +69,7 @@ class SimpleBatteryModel:
         m.P_grid_max = pyo.Param(initialize=float(self.P_grid_max))
 
         # Export enable switch (0/1). When 0, export is forced to 0.
-        m.kappa_exp = pyo.Param(initialize=1.0 if bool(self.allow_export) else 0.0, within=pyo.Binary)
+        m.kappa_exp = pyo.Param(initialize=1 if bool(self.allow_export) else 0, within=pyo.Binary)
 
         m.Load = pyo.Param(m.T, initialize=_to_1_indexed_dict(load), within=pyo.NonNegativeReals)
         m.PV = pyo.Param(m.T, initialize=_to_1_indexed_dict(pv), within=pyo.NonNegativeReals)
@@ -92,57 +92,44 @@ class SimpleBatteryModel:
         m.x = pyo.Var(m.T, within=pyo.Binary)  # charge vs discharge
         m.y = pyo.Var(m.T, within=pyo.Binary)  # import vs export
 
-        def init_energy_rule(mm):
-            return mm.E[0] == mm.E_init
+        # Initial energy
+        m.init_energy = pyo.Constraint(expr=m.E[0] == m.E_init)
 
-        m.init_energy = pyo.Constraint(rule=init_energy_rule)
-
+        # Battery dynamics
         def energy_dyn_rule(mm, t):
             return mm.E[t] == mm.E[t - 1] + mm.eta_ch * mm.P_ch[t] * mm.dt - (1.0 / mm.eta_dis) * mm.P_dis[t] * mm.dt
 
         m.energy_dyn = pyo.Constraint(m.T, rule=energy_dyn_rule)
 
+        # Energy bounds (including t=0)
         def energy_bounds_rule(mm, t):
             return pyo.inequality(mm.E_min, mm.E[t], mm.E_max)
 
         m.energy_bounds = pyo.Constraint(m.TE, rule=energy_bounds_rule)
 
         # Prevent simultaneous charge and discharge
-        def no_simul_batt_ch_rule(mm, t):
-            return mm.P_ch[t] <= mm.x[t] * mm.P_ch_max
-
-        def no_simul_batt_dis_rule(mm, t):
-            return mm.P_dis[t] <= (1 - mm.x[t]) * mm.P_dis_max
-
-        m.no_simul_batt_ch = pyo.Constraint(m.T, rule=no_simul_batt_ch_rule)
-        m.no_simul_batt_dis = pyo.Constraint(m.T, rule=no_simul_batt_dis_rule)
+        m.no_simul_batt_ch = pyo.Constraint(m.T, rule=lambda mm, t: mm.P_ch[t] <= mm.x[t] * mm.P_ch_max)
+        m.no_simul_batt_dis = pyo.Constraint(m.T, rule=lambda mm, t: mm.P_dis[t] <= (1 - mm.x[t]) * mm.P_dis_max)
 
         # Prevent simultaneous import and export
-        def no_simul_grid_imp_rule(mm, t):
-            return mm.P_imp[t] <= mm.y[t] * mm.P_grid_max
+        m.no_simul_grid_imp = pyo.Constraint(m.T, rule=lambda mm, t: mm.P_imp[t] <= mm.y[t] * mm.P_grid_max)
 
         def no_simul_grid_exp_rule(mm, t):
             # if kappa_exp == 0 => P_exp[t] <= 0 => P_exp[t] == 0 (since NonNegative)
             return mm.P_exp[t] <= (1 - mm.y[t]) * mm.P_grid_max * mm.kappa_exp
 
-        m.no_simul_grid_imp = pyo.Constraint(m.T, rule=no_simul_grid_imp_rule)
         m.no_simul_grid_exp = pyo.Constraint(m.T, rule=no_simul_grid_exp_rule)
 
-        # Curtailment cannot exceed available PV (tightens model, avoids nonsensical solutions)
-        def curt_upper_rule(mm, t):
-            return mm.P_curt[t] <= mm.PV[t]
+        # Curtailment cannot exceed available PV (tightens model)
+        m.curt_upper = pyo.Constraint(m.T, rule=lambda mm, t: mm.P_curt[t] <= mm.PV[t])
 
-        m.curt_upper = pyo.Constraint(m.T, rule=curt_upper_rule)
-
-        # Power balance: all inflows = all outflows (kW)
+        # Power balance (kW): inflows = outflows
         def power_balance_rule(mm, t):
             return mm.P_imp[t] + mm.PV[t] + mm.P_dis[t] == mm.Load[t] + mm.P_ch[t] + mm.P_exp[t] + mm.P_curt[t]
 
         m.power_balance = pyo.Constraint(m.T, rule=power_balance_rule)
 
-        def obj_rule(mm):
-            return sum((mm.c_grid[t] * mm.P_imp[t] - mm.c_sell[t] * mm.P_exp[t]) * mm.dt for t in mm.T)
-
-        m.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
+        # Objective: minimize net cost
+        m.obj = pyo.Objective(expr=sum((m.c_grid[t] * m.P_imp[t] - m.c_sell[t] * m.P_exp[t]) * m.dt for t in m.T), sense=pyo.minimize)
 
         return m

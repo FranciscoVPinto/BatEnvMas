@@ -1,0 +1,39 @@
+case: pv03_fallback_instant_export
+data:
+  pv_total: data/pv_gen.csv
+  loads:
+    A: data/load_cons.csv
+    B: data/load_cons.csv
+tariffs:
+  grid_buy: 0.25
+  grid_sell: 0.05
+grid:
+  allow_export: true
+sharing:
+  mode: fixed_alpha
+  normalize: false
+  strict_sum_to_one: false
+  fallback:
+    mode: consumption_instant
+    apply_when: always
+houses:
+  A:
+    battery:
+      E_init: 2.0
+      E_min: 0.5
+      E_max: 5.0
+      P_ch_max: 2.0
+      P_dis_max: 2.0
+      eta_ch: 0.95
+      eta_dis: 0.95
+      P_grid_max: 10.0
+  B:
+    battery:
+      E_init: 1.0
+      E_min: 0.2
+      E_max: 3.0
+      P_ch_max: 1.5
+      P_dis_max: 1.5
+      eta_ch: 0.95
+      eta_dis: 0.95
+      P_grid_max: 10.0

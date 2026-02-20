@@ -1,0 +1,22 @@
+runset:
+- runsets/pv/runset_pv_study.yaml
+- runsets/p2p/runset_p2p_equalprice.yaml
+- runsets/p2p/runset_p2p_spread.yaml
+- runsets/p2p/runset_p2p_fee.yaml
+
+enabled:
+  pv_study: true
+  p2p_equalprice: true
+  p2p_spread: true
+  p2p_fee: true
+
+defaults:
+  outputs_dir: results
+  tee: false
+  solver:
+    name: highs
+    options: {}
+  time:
+    horizon: 2500
+    dt_hours: 0.25
+    start: 2025-01-01 00:00

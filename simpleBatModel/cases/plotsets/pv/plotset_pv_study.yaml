@@ -1,0 +1,24 @@
+plotset: pv_study
+cases_base_dir: cases/scenarios/pv/study
+outputs_dir: results
+cases:
+- pv01_equal_export.yaml
+- pv02_weighted_export.yaml
+- pv03_fallback_instant_export.yaml
+- pv04_fallback_mean_export.yaml
+- pv05_equal_no_export.yaml
+- pv06_weighted_no_export.yaml
+- pv07_fallback_instant_no_export.yaml
+- pv08_fallback_mean_no_export.yaml
+enabled:
+  pv01_equal_export: true
+  pv02_weighted_export: true
+  pv03_fallback_instant_export: true
+  pv04_fallback_mean_export: true
+  pv05_equal_no_export: true
+  pv06_weighted_no_export: true
+  pv07_fallback_instant_no_export: true
+  pv08_fallback_mean_no_export: true
+plots:
+  per_case: true
+  comparisons: true

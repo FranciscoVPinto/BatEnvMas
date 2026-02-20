@@ -1,0 +1,22 @@
+runset: p2p_fee
+cases_base_dir: cases/scenarios/p2p/fee
+cases:
+- p2p_fee_01_equal_export.yaml
+- p2p_fee_02_weighted_export.yaml
+- p2p_fee_03_fallback_instant_export.yaml
+- p2p_fee_04_fallback_mean_export.yaml
+- p2p_fee_05_equal_no_export.yaml
+- p2p_fee_06_weighted_no_export.yaml
+- p2p_fee_07_fallback_instant_no_export.yaml
+- p2p_fee_08_fallback_mean_no_export.yaml
+enabled:
+  p2p_fee_01_equal_export: true
+  p2p_fee_02_weighted_export: true
+  p2p_fee_03_fallback_instant_export: true
+  p2p_fee_04_fallback_mean_export: true
+  p2p_fee_05_equal_no_export: true
+  p2p_fee_06_weighted_no_export: true
+  p2p_fee_07_fallback_instant_no_export: true
+  p2p_fee_08_fallback_mean_no_export: true
+defaults:
+  outputs_dir: results/p2p_fee

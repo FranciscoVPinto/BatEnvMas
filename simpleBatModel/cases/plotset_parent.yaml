@@ -1,0 +1,15 @@
+plotset:
+- ../plotsets/pv/plotset_pv_study.yaml
+- ../plotsets/p2p/plotset_p2p_equalprice.yaml
+- ../plotsets/p2p/plotset_p2p_spread.yaml
+- ../plotsets/p2p/plotset_p2p_fee.yaml
+enabled:
+  pv_study: true
+  p2p_equalprice: false
+  p2p_spread: false
+  p2p_fee: false
+defaults:
+  outputs_dir: results
+  plots:
+    per_case: true
+    comparisons: true

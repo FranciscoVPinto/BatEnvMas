@@ -1,0 +1,16 @@
+experiment: debug_one_case
+enabled: true
+
+case_yaml: scenarios/pv/study/pv01_equal_export.yaml
+
+defaults:
+  outputs_dir: results
+  tee: false
+  time:
+    horizon: 2688
+    dt_hours: 0.25
+    start: 2025-01-01 00:00
+  plots:
+    per_case: true
+    comparisons: false
+    include_community_per_case: true

@@ -10,15 +10,24 @@ import matplotlib.pyplot as plt
 
 def _ensure_derived(df: pd.DataFrame, dt_hours: float) -> pd.DataFrame:
     """
-    Adds time-dependent derived columns used in plots/comparisons:
-      - P_net_grid = P_imp - P_exp
-      - P_simul_imp_exp = min(P_imp, P_exp)
-      - cost_step = (c_grid*P_imp - c_sell*P_exp)*dt_hours
-      - cost_cum = cumsum(cost_step)
+    Adds time-dependent derived columns.
+
+    Backwards compatible:
+      - cost_step / cost_cum remain GRID-only.
+
+    Adds (when P2P prices exist):
+      - P_share_in / P_share_out
+      - cost_total_step / cost_total_cum
     """
     out = df.copy()
 
-    for c in ["P_imp", "P_exp", "P_ch", "P_dis", "P_curt", "Load", "PV", "E", "c_grid", "c_sell"]:
+    num_cols = [
+        "P_imp", "P_exp", "P_ch", "P_dis", "P_curt",
+        "P_share", "P_share_in", "P_share_out",
+        "Load", "PV", "E",
+        "c_grid", "c_sell", "c_p2p_buy", "c_p2p_sell", "c_p2p_fee",
+    ]
+    for c in num_cols:
         if c in out.columns:
             out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0.0)
 
@@ -31,14 +40,27 @@ def _ensure_derived(df: pd.DataFrame, dt_hours: float) -> pd.DataFrame:
         P_exp = out["P_exp"] if "P_exp" in out.columns else 0.0
         out["cost_step"] = (out["c_grid"] * out["P_imp"] - c_sell * P_exp) * float(dt_hours)
         out["cost_cum"] = out["cost_step"].cumsum()
+        out["cost_grid_step"] = out["cost_step"]
+        out["cost_grid_cum"] = out["cost_cum"]
+
+    if ("P_share_in" not in out.columns or "P_share_out" not in out.columns) and ("P_share" in out.columns):
+        share = out["P_share"].to_numpy()
+        out["P_share_out"] = np.clip(share, 0.0, None)
+        out["P_share_in"] = np.clip(-share, 0.0, None)
+
+    has_p2p_prices = ("c_p2p_buy" in out.columns) and ("c_p2p_sell" in out.columns) and ("c_p2p_fee" in out.columns)
+    if has_p2p_prices and ("P_share_in" in out.columns) and ("P_share_out" in out.columns):
+        out["cost_p2p_step"] = (out["c_p2p_buy"] * out["P_share_in"] - out["c_p2p_sell"] * out["P_share_out"]) * float(dt_hours)
+        out["cost_p2p_fee_step"] = (out["c_p2p_fee"] * out["P_share_out"]) * float(dt_hours)
+
+        grid = out["cost_step"] if "cost_step" in out.columns else 0.0
+        out["cost_total_step"] = grid + out["cost_p2p_step"] + out["cost_p2p_fee_step"]
+        out["cost_total_cum"] = out["cost_total_step"].cumsum()
 
     return out
 
 
 def compute_summary_metrics(df: pd.DataFrame, dt_hours: float) -> Dict[str, Any]:
-    """
-    Summary KPIs (still useful), but computed from time-series (dt-aware).
-    """
     d = _ensure_derived(df, dt_hours=dt_hours)
 
     def _E(col: str) -> float:
@@ -55,6 +77,14 @@ def compute_summary_metrics(df: pd.DataFrame, dt_hours: float) -> Dict[str, Any]
     out["E_dis_kWh"] = _E("P_dis")
     out["E_curt_kWh"] = _E("P_curt")
 
+    if "P_share_out" in d.columns and "P_share_in" in d.columns:
+        out["E_share_out_kWh"] = _E("P_share_out")
+        out["E_share_in_kWh"] = _E("P_share_in")
+    elif "P_share" in d.columns:
+        share = d["P_share"].to_numpy()
+        out["E_share_out_kWh"] = float(np.clip(share, 0, None).sum() * dt_hours)
+        out["E_share_in_kWh"] = float(np.clip(-share, 0, None).sum() * dt_hours)
+
     if out["E_pv_kWh"] > 0:
         out["Curt_frac_of_PV"] = float(out["E_curt_kWh"] / out["E_pv_kWh"])
 
@@ -67,6 +97,11 @@ def compute_summary_metrics(df: pd.DataFrame, dt_hours: float) -> Dict[str, Any]
         out["Cost_total_EUR"] = float(d["cost_step"].sum())
         out["Cost_min_step_EUR"] = float(d["cost_step"].min())
         out["Cost_max_step_EUR"] = float(d["cost_step"].max())
+
+    if "cost_total_step" in d.columns and len(d["cost_total_step"]) > 0:
+        out["Cost_total_with_p2p_EUR"] = float(d["cost_total_step"].sum())
+        out["Cost_total_with_p2p_min_step_EUR"] = float(d["cost_total_step"].min())
+        out["Cost_total_with_p2p_max_step_EUR"] = float(d["cost_total_step"].max())
 
     if "P_net_grid" in d.columns and len(d["P_net_grid"]) > 0:
         out["P_net_grid_max_kW"] = float(d["P_net_grid"].max())
@@ -90,9 +125,6 @@ def plot_house_per_case(
     title: str = "",
     dt_hours: float = 1.0,
 ) -> None:
-    """
-    Single PNG per house (but with multiple stacked panels) for detailed time-dependent inspection.
-    """
     outpath = Path(outpath)
     outpath.parent.mkdir(parents=True, exist_ok=True)
 
@@ -106,19 +138,17 @@ def plot_house_per_case(
 
     fig = plt.figure(figsize=(13, 10))
 
-    # 1) Load & PV
     ax1 = fig.add_subplot(4, 1, 1)
     if "Load" in d.columns:
         ax1.plot(x, d["Load"].to_numpy(), label="Load (kW)")
     if "PV" in d.columns:
         ax1.plot(x, d["PV"].to_numpy(), label="PV (kW)")
     if "P_curt" in d.columns:
-        ax1.plot(x, d["P_curt"].to_numpy(), label="PV curtailed P_curt (kW)")
+        ax1.plot(x, d["P_curt"].to_numpy(), label="PV curtailed (kW)")
     ax1.set_ylabel("kW")
     ax1.set_title(title or "House")
     ax1.legend()
 
-    # 2) Grid flows + net grid
     ax2 = fig.add_subplot(4, 1, 2, sharex=ax1)
     if "P_imp" in d.columns:
         ax2.plot(x, d["P_imp"].to_numpy(), label="Import (kW)")
@@ -126,37 +156,45 @@ def plot_house_per_case(
         ax2.plot(x, d["P_exp"].to_numpy(), label="Export (kW)")
     if "P_net_grid" in d.columns:
         ax2.plot(x, d["P_net_grid"].to_numpy(), label="Net grid (Imp-Exp) (kW)")
+    if "P_share" in d.columns:
+        ax2.plot(x, d["P_share"].to_numpy(), label="Share (+send / -receive) (kW)")
     ax2.set_ylabel("kW")
     ax2.legend()
 
-    # 3) Battery power + Energy
     ax3 = fig.add_subplot(4, 1, 3, sharex=ax1)
     if "P_ch" in d.columns:
-        ax3.plot(x, d["P_ch"].to_numpy(), label="Charge P_ch (kW)")
+        ax3.plot(x, d["P_ch"].to_numpy(), label="Charge (kW)")
     if "P_dis" in d.columns:
-        ax3.plot(x, d["P_dis"].to_numpy(), label="Discharge P_dis (kW)")
+        ax3.plot(x, d["P_dis"].to_numpy(), label="Discharge (kW)")
     ax3.set_ylabel("kW")
     ax3.legend(loc="upper left")
 
     ax3b = ax3.twinx()
     if "E" in d.columns:
-        ax3b.plot(x, d["E"].to_numpy(), label="Energy E (kWh)")
+        ax3b.plot(x, d["E"].to_numpy(), label="Energy (kWh)")
         ax3b.set_ylabel("kWh")
 
-    # 4) Prices + costs (step & cumulative)
     ax4 = fig.add_subplot(4, 1, 4, sharex=ax1)
     if "c_grid" in d.columns:
         ax4.plot(x, d["c_grid"].to_numpy(), label="c_grid (€/kWh)")
     if "c_sell" in d.columns:
         ax4.plot(x, d["c_sell"].to_numpy(), label="c_sell (€/kWh)")
+    if "c_p2p_buy" in d.columns:
+        ax4.plot(x, d["c_p2p_buy"].to_numpy(), label="c_p2p_buy (€/kWh)")
+    if "c_p2p_sell" in d.columns:
+        ax4.plot(x, d["c_p2p_sell"].to_numpy(), label="c_p2p_sell (€/kWh)")
+    if "c_p2p_fee" in d.columns:
+        ax4.plot(x, d["c_p2p_fee"].to_numpy(), label="c_p2p_fee (€/kWh)")
     ax4.set_ylabel("€/kWh")
     ax4.legend(loc="upper left")
 
     ax4b = ax4.twinx()
     if "cost_step" in d.columns:
-        ax4b.plot(x, d["cost_step"].to_numpy(), label=f"cost_step (€) [dt={dt_hours}h]")
-    if "cost_cum" in d.columns:
-        ax4b.plot(x, d["cost_cum"].to_numpy(), label="cost_cum (€)")
+        ax4b.plot(x, d["cost_step"].to_numpy(), label=f"grid cost_step (€) [dt={dt_hours}h]")
+    if "cost_total_step" in d.columns:
+        ax4b.plot(x, d["cost_total_step"].to_numpy(), label="total cost_step (€)")
+    if "cost_total_cum" in d.columns:
+        ax4b.plot(x, d["cost_total_cum"].to_numpy(), label="total cost_cum (€)")
     ax4b.set_ylabel("€")
 
     ax4.set_xlabel("time (hours)")

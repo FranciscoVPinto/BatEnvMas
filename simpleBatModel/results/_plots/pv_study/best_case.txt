@@ -1,2 +1,0 @@
-Best case by community Cost_total_EUR: pv03_dyn_instant_export
-Cost_total_EUR = 269.277573365771

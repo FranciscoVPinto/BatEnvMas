@@ -1,0 +1,22 @@
+runset: p2p_spread
+cases_base_dir: cases/scenarios/p2p/spread
+cases:
+- p2p_spread_01_equal_export.yaml
+- p2p_spread_02_weighted_export.yaml
+- p2p_spread_03_fallback_instant_export.yaml
+- p2p_spread_04_fallback_mean_export.yaml
+- p2p_spread_05_equal_no_export.yaml
+- p2p_spread_06_weighted_no_export.yaml
+- p2p_spread_07_fallback_instant_no_export.yaml
+- p2p_spread_08_fallback_mean_no_export.yaml
+enabled:
+  p2p_spread_01_equal_export: true
+  p2p_spread_02_weighted_export: true
+  p2p_spread_03_fallback_instant_export: true
+  p2p_spread_04_fallback_mean_export: true
+  p2p_spread_05_equal_no_export: true
+  p2p_spread_06_weighted_no_export: true
+  p2p_spread_07_fallback_instant_no_export: true
+  p2p_spread_08_fallback_mean_no_export: true
+defaults:
+  outputs_dir: results/p2p_spread

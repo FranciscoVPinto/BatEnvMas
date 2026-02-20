@@ -11,15 +11,14 @@ COMMUNITY_ID = "_COMMUNITY"
 
 def aggregate_community_timeseries(house_dfs: Dict[str, pd.DataFrame]) -> pd.DataFrame:
     """
-    Agrega vários results_house_*.csv num dataframe sintético da comunidade.
+    Aggregate multiple house result CSVs into a synthetic community dataframe.
 
-    Produz (pelo menos):
-      t, Load, PV, P_imp, P_exp, P_ch, P_dis, P_curt, E, c_grid, c_sell, P_simul_imp_exp
+    Produces (at least):
+      t, Load, PV, P_imp, P_exp, P_ch, P_dis, P_curt, P_share, E, c_grid, c_sell, P_simul_imp_exp
 
-    Notas:
-      - E é soma do armazenamento total (se existir E nos dfs).
-      - Colunas em falta numa casa contam como 0.
-      - Assume que todas as casas usam o mesmo índice temporal 't'.
+    Notes:
+      - Missing columns are treated as 0.
+      - Assumes all houses share the same time index 't'.
     """
     if not house_dfs:
         return pd.DataFrame()
@@ -30,7 +29,7 @@ def aggregate_community_timeseries(house_dfs: Dict[str, pd.DataFrame]) -> pd.Dat
 
     out = pd.DataFrame({"t": ref["t"].astype(int)})
 
-    sum_cols = ["Load", "PV", "P_imp", "P_exp", "P_ch", "P_dis", "P_curt", "E"]
+    sum_cols = ["Load", "PV", "P_imp", "P_exp", "P_ch", "P_dis", "P_curt", "P_share", "E"]
     passthrough_cols = ["c_grid", "c_sell"]
 
     for col in sum_cols:
@@ -51,16 +50,12 @@ def aggregate_community_timeseries(house_dfs: Dict[str, pd.DataFrame]) -> pd.Dat
         if col not in out.columns:
             out[col] = np.nan
 
-    # proxy de simultaneidade: importação e exportação ao mesmo tempo
     out["P_simul_imp_exp"] = np.minimum(out["P_imp"].to_numpy(), out["P_exp"].to_numpy())
 
     return out
 
 
 def compute_community_extra_metrics(df_comm: pd.DataFrame, dt_hours: float) -> Dict[str, Any]:
-    """
-    KPIs extra (além dos que compute_summary_metrics já calcula).
-    """
     if df_comm.empty:
         return {}
 
@@ -69,19 +64,27 @@ def compute_community_extra_metrics(df_comm: pd.DataFrame, dt_hours: float) -> D
     if "P_simul_imp_exp" in df_comm.columns:
         out["E_simul_imp_exp_kWh"] = float(df_comm["P_simul_imp_exp"].sum() * dt_hours)
 
-    if "P_imp" in df_comm.columns and "P_exp" in df_comm.columns:
-        Eimp = float(df_comm["P_imp"].sum() * dt_hours)
-        Eexp = float(df_comm["P_exp"].sum() * dt_hours)
-        out["E_imp_kWh_COMM"] = Eimp
-        out["E_exp_kWh_COMM"] = Eexp
-        if "P_curt" in df_comm.columns:
-            Ecurt = float(df_comm["P_curt"].sum() * dt_hours)
-            out["E_curt_kWh_COMM"] = Ecurt
-            if "PV" in df_comm.columns:
-                Epv = float(df_comm["PV"].sum() * dt_hours)
-                if Epv > 0:
-                    out["Curt_frac_of_PV_COMM"] = float(Ecurt / Epv)
-        if Eimp > 0:
-            out["Simul_frac_of_import"] = float(out.get("E_simul_imp_exp_kWh", 0.0) / Eimp)
+    def _E(col: str) -> float:
+        if col not in df_comm.columns:
+            return 0.0
+        return float(df_comm[col].sum() * dt_hours)
+
+    out["E_imp_kWh_COMM"] = _E("P_imp")
+    out["E_exp_kWh_COMM"] = _E("P_exp")
+    out["E_curt_kWh_COMM"] = _E("P_curt")
+
+    # Note: sum of P_share over houses should be ~0 by construction, but we can still report flows if needed.
+    if "P_share" in df_comm.columns:
+        share = df_comm["P_share"].to_numpy()
+        out["E_share_out_kWh_COMM"] = float(np.clip(share, 0, None).sum() * dt_hours)
+        out["E_share_in_kWh_COMM"] = float(np.clip(-share, 0, None).sum() * dt_hours)
+
+    if "PV" in df_comm.columns:
+        Epv = _E("PV")
+        if Epv > 0:
+            out["Curt_frac_of_PV_COMM"] = float(out["E_curt_kWh_COMM"] / Epv)
+
+    if out["E_imp_kWh_COMM"] > 0:
+        out["Simul_frac_of_import"] = float(out.get("E_simul_imp_exp_kWh", 0.0) / out["E_imp_kWh_COMM"])
 
     return out

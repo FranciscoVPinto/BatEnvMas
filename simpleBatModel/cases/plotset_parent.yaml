@@ -1,13 +1,7 @@
 plotset:
-- plotsets/pv/plotset_pv_study.yaml
-- plotsets/p2p/plotset_p2p_equalprice.yaml
-- plotsets/p2p/plotset_p2p_spread.yaml
-- plotsets/p2p/plotset_p2p_fee.yaml
+- plotsets/plotset_pv_building8.yaml
 enabled:
-  pv_study: true
-  p2p_equalprice: true
-  p2p_spread: true
-  p2p_fee: true
+  plotset_pv_building8: true
 defaults:
   outputs_dir: results
   plots:

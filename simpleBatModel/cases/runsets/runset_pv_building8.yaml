@@ -1,0 +1,26 @@
+runset: pv_building8_share
+cases_base_dir: cases/scenarios/building8
+cases:
+- b8_pv01_equal_export.yaml
+- b8_pv02_weighted_export.yaml
+- b8_pv03_consumption_instant_export.yaml
+- b8_pv04_consumption_mean_export.yaml
+- b8_pv05_equal_no_export.yaml
+- b8_pv06_weighted_no_export.yaml
+- b8_pv07_consumption_instant_no_export.yaml
+- b8_pv08_consumption_mean_no_export.yaml
+enabled:
+  b8_pv01_equal_export: true
+  b8_pv02_weighted_export: true
+  b8_pv03_consumption_instant_export: true
+  b8_pv04_consumption_mean_export: true
+  b8_pv05_equal_no_export: true
+  b8_pv06_weighted_no_export: true
+  b8_pv07_consumption_instant_no_export: true
+  b8_pv08_consumption_mean_no_export: true
+defaults:
+  outputs_dir: results/pv_building8
+  tee: false
+  solver:
+    name: highs
+    options: {}

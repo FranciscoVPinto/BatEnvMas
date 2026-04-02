@@ -163,7 +163,14 @@ def prepare_pv_by_house(
 
     # Mode B: shared PV_total
     pv_total_path = data_cfg.get("pv_total")
-    pv_total = load_series_csv_1col(_abs_from_root(root, pv_total_path), T=T)
+    
+    if isinstance(pv_total_path, (list, tuple)):
+        pv_total = [0.0] * T
+        for p in pv_total_path:
+            series = load_series_csv_1col(_abs_from_root(root, p), T=T)
+            pv_total = [a + b for a, b in zip(pv_total, series)]
+    else:
+        pv_total = load_series_csv_1col(_abs_from_root(root, pv_total_path), T=T)
 
     sharing_cfg = cfg.get("sharing", {})
     if not isinstance(sharing_cfg, dict):

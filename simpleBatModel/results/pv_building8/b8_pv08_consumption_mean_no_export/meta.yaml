@@ -1,0 +1,38 @@
+case: b8_pv08_consumption_mean_no_export
+case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+  Mec\Tese\BatEnvMas\simpleBatModel\cases\scenarios\building8\b8_pv08_consumption_mean_no_export.yaml
+created_at: '2026-04-02T09:40:52.878694'
+dt_hours: 0.25
+horizon: 2688
+start: 2025-01-01 00:00
+allow_export: false
+sharing_enabled: false
+model_kind: house_indexed_unified
+warnings: []
+pv_info:
+  warnings: []
+  mode: shared_alpha
+  normalize: false
+  strict_sum_to_one: false
+  fallback:
+    mode: consumption_mean
+    apply_when: always
+    zero_denom: equal_split
+  fallback_used: true
+  fallback_details:
+    fallback_mode: consumption_mean
+    means:
+      Apt1: 0.06348948879160857
+      Apt2: 0.3601670676934727
+      Apt3: 0.175511429053773
+      Apt4: 0.08843818917904853
+      Apt5: 0.22294045628271605
+      Apt6: 0.41512900290006044
+      Apt7: 0.13661803216525406
+      Apt8: 0.3958186050126285
+    mean_sum: 1.858112271078562
+solver_used: highs
+termination_condition: optimal
+debug:
+  write_lp: true
+  max_rows: 30

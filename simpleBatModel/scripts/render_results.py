@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 import argparse
 import yaml
@@ -60,6 +60,39 @@ def _resolve_from(yaml_path: Path, maybe_rel: str | Path) -> Path:
         return cand
 
     return (ROOT / p).resolve()
+
+
+def _auto_pick_outputs_dir(outputs_dir: Path, plotset_name: str, case_names: list[str]) -> Path:
+    """
+    Auto-detect where results actually live:
+      - outputs_dir/<case_name>
+      - outputs_dir/<plotset_name>/<case_name>
+    Picks the candidate with the most matching case folders / CSVs.
+    """
+    candidates = [outputs_dir]
+
+    nested = outputs_dir / plotset_name
+    if nested != outputs_dir:
+        candidates.append(nested)
+
+    def _score(base: Path) -> tuple[int, int, int]:
+        csv_hits = 0
+        dir_hits = 0
+        for cn in case_names:
+            d = base / cn
+            if d.is_dir():
+                dir_hits += 1
+                if any(d.glob("results_house_*.csv")):
+                    csv_hits += 1
+        return (csv_hits, dir_hits, int(base.is_dir()))
+
+    best = max(candidates, key=_score)
+
+    if best != outputs_dir:
+        print(f"[AUTO] outputs_dir adjusted: {outputs_dir.resolve()} -> {best.resolve()}")
+
+    return best
+
 
 def _is_parent_plotset(cfg: dict) -> bool:
     """
@@ -130,10 +163,11 @@ def make_per_case_plots(
     case_out_dir: Path,
     dt_hours: float,
     *,
-    out_root: Path,
+    per_case_root: Path,
     include_community: bool = False,
+    case_yaml_path: Optional[Path] = None,
 ) -> None:
-    plots_dir = out_root / "per_case" / case_name / "houses"
+    plots_dir = per_case_root / "houses"
     plots_dir.mkdir(parents=True, exist_ok=True)
 
     house_dfs = read_house_csvs(case_out_dir)
@@ -146,14 +180,31 @@ def make_per_case_plots(
         if not df_comm.empty:
             house_dfs = dict(house_dfs)
             house_dfs[COMMUNITY_ID] = df_comm
-            comm_csv = out_root / "per_case" / case_name / "community_timeseries.csv"
+            comm_csv = per_case_root / "community_timeseries.csv"
             df_comm.to_csv(comm_csv, index=False)
+
+    case_cfg: dict = {}
+    if case_yaml_path is not None:
+        case_cfg = load_case_yaml(case_yaml_path)
 
     for house_id, df in house_dfs.items():
         out_png = plots_dir / f"plot_house_{house_id}.png"
-        plot_house_per_case(df, out_png, title=f"{case_name} | {house_id}", dt_hours=dt_hours)
 
-    print(f"[OK] per-case saved: {plots_dir.parent}")
+        # If this is the community “house”, it typically has no battery config in YAML
+        bat = (case_cfg.get("houses", {}).get(house_id, {}) or {}).get("battery", {}) or {}
+        E_min = bat.get("E_min", None)
+        E_max = bat.get("E_max", None)
+
+        plot_house_per_case(
+            df,
+            out_png,
+            title=f"{case_name} | {house_id}",
+            dt_hours=dt_hours,
+            E_min=float(E_min) if E_min is not None else None,
+            E_max=float(E_max) if E_max is not None else None,
+        )
+
+    print(f"[OK] per-case saved: {per_case_root}")
 
 
 def make_comparisons(
@@ -254,7 +305,6 @@ def make_comparisons(
 
         preferred = [
             "Cost_total_EUR",
-            "Cost_total_with_p2p_EUR",
             "E_imp_kWh",
             "E_exp_kWh",
             "E_ch_kWh",
@@ -263,8 +313,6 @@ def make_comparisons(
             "E_simul_imp_exp_kWh",
             "P_imp_max_kW",
             "P_net_grid_max_kW",
-            "E_share_out_kWh",
-            "E_share_in_kWh",
             "E_curt_kWh",
         ]
         metric_list = [m for m in preferred if m in metrics_all.columns]
@@ -279,7 +327,12 @@ def make_comparisons(
 
             for metric in metric_list:
                 out_png = bar_root / f"bar_{metric}_house_{house_id}.png"
-                plot_compare_metrics(sub, metric=metric, outpath=out_png, title=f"{plotset_name} | {metric} | {house_id}")
+                plot_compare_metrics(
+                    sub,
+                    metric=metric,
+                    outpath=out_png,
+                    title=f"{plotset_name} | {metric} | {house_id}",
+                )
 
         print(f"[OK] comparisons: metric bars saved to {bar_root}")
 
@@ -309,12 +362,28 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
     do_comparisons = bool(plots_cfg.get("comparisons", True))
     include_comm_per_case = bool(plots_cfg.get("include_community_per_case", True))
 
-    out_root = outputs_dir / "_plots" / plotset_name
-    out_root.mkdir(parents=True, exist_ok=True)
-
     case_items = ps.get("cases", [])
     if not isinstance(case_items, list) or not case_items:
         raise ValueError("plotset.cases must be a non-empty list of case YAML files")
+
+    # Resolve case YAMLs first (needed for auto-detecting outputs_dir)
+    resolved_cases: list[tuple[str, Path]] = []
+    for item in case_items:
+        case_path = resolve_case_path(cases_base_dir, item)
+        if not case_path.exists():
+            raise FileNotFoundError(f"Case YAML not found: {case_path}")
+        case_name = get_case_name(case_path)
+        resolved_cases.append((case_name, case_path))
+
+    enabled_case_names = [cn for cn, _ in resolved_cases if enabled_map.get(cn, True) is not False]
+
+    # AUTO: supports both:
+    #   outputs_dir/<case_name>
+    #   outputs_dir/<plotset_name>/<case_name>
+    outputs_dir = _auto_pick_outputs_dir(outputs_dir, plotset_name, enabled_case_names)
+
+    out_root = outputs_dir / "_plots" / plotset_name
+    out_root.mkdir(parents=True, exist_ok=True)
 
     print(f"[PLOTSET] {plotset_name}")
     print(f"[PLOTSET] plotset_yaml: {plotset_yaml_path.resolve()}")
@@ -324,12 +393,7 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
     print("")
 
     cases_info: list[tuple[str, Path, float]] = []
-    for item in case_items:
-        case_path = resolve_case_path(cases_base_dir, item)
-        if not case_path.exists():
-            raise FileNotFoundError(f"Case YAML not found: {case_path}")
-
-        case_name = get_case_name(case_path)
+    for case_name, case_path in resolved_cases:
         if enabled_map.get(case_name, True) is False:
             print(f"[SKIP] {case_name} ({case_path.name})")
             continue
@@ -342,17 +406,24 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
         print("[WARN] No enabled cases to plot.")
         return
 
+    case_path_by_name = {cn: cp for cn, cp in resolved_cases}
+
     if do_per_case:
         for case_name, case_out_dir, dt_hours in cases_info:
             if not case_out_dir.exists():
                 print(f"[WARN] outputs folder not found: {case_out_dir} (run the case first)")
                 continue
+
+            # Per-case plots go inside the same case folder as the CSVs
+            per_case_root = case_out_dir / "_plots" / plotset_name
+
             make_per_case_plots(
                 case_name,
                 case_out_dir,
                 dt_hours=dt_hours,
-                out_root=out_root,
+                per_case_root=per_case_root,
                 include_community=include_comm_per_case,
+                case_yaml_path=case_path_by_name[case_name],
             )
 
     if do_comparisons:
@@ -449,12 +520,14 @@ def _run_single_experiment_plot(exp: dict, *, exp_yaml_path: Path) -> None:
         return
 
     if do_per_case:
+        per_case_root = case_out_dir / "_plots" / name
         make_per_case_plots(
             case_name,
             case_out_dir,
             dt_hours=dt_hours,
-            out_root=out_root,
+            per_case_root=per_case_root,
             include_community=include_comm,
+            case_yaml_path=case_path,  # IMPORTANT: pass yaml path for SOC bounds
         )
 
     if do_comparisons:
@@ -472,7 +545,7 @@ def make_plots_all(plotset_yaml: str | Path) -> None:
 
     cfg = load_plotset_yaml(plotset_yaml_path)
 
-    # NEW: allow plotting using the SAME experiment.yaml
+    # allow plotting using the SAME experiment.yaml
     if _is_single_experiment(cfg):
         _run_single_experiment_plot(cfg, exp_yaml_path=plotset_yaml_path)
         return

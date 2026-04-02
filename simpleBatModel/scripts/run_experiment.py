@@ -82,6 +82,12 @@ def _run_single_runset(runset: dict, *, runset_yaml_path: Path):
 
     tee_default = bool(defaults.get("tee", False))
 
+    solver_defaults = defaults.get("solver", None)
+    if solver_defaults is not None and not isinstance(solver_defaults, dict):
+        raise ValueError("defaults.solver must be a dict (e.g. {name: 'highs', options: {...}})")
+    solver_name = str((solver_defaults or {}).get("name", "highs"))
+    solver_opts = (solver_defaults or {}).get("options", None)
+
     time_defaults = defaults.get("time", None)
     if time_defaults is not None and not isinstance(time_defaults, dict):
         raise ValueError(
@@ -122,6 +128,8 @@ def _run_single_runset(runset: dict, *, runset_yaml_path: Path):
             outputs_dir=str(outputs_dir),
             tee=tee_default,
             time_override=time_defaults,
+            solver=solver_name,
+            solver_options=solver_opts,
         )
         print("")
 
@@ -132,60 +140,42 @@ def _run_parent_runset(parent: dict, *, parent_yaml_path: Path):
     Parent runset YAML example:
 
     runset:
-      - runset.yaml
-      - runset_p2p.yaml
-
+      - runsets/pv/runset_pv_study.yaml
     enabled:
       pv_study: true
-      p2p_study: false
-
-    defaults:   # optional: merged into each child runset defaults (child wins)
+    defaults:
       outputs_dir: results
       tee: false
-      time:
-        horizon: 2688
-        dt_hours: 0.25
-        start: 2025-01-01 00:00
+      time: {horizon: 96, dt_hours: 0.25, start: "2025-01-01 00:00"}
     """
-    children = parent.get("runset", [])
-    if not isinstance(children, list) or not children:
-        raise ValueError("Parent runset must have a non-empty list under key 'runset'.")
-
-    enabled_map = parent.get("enabled", {}) or {}
-    if not isinstance(enabled_map, dict):
-        raise ValueError("Parent enabled must be a dict mapping runset_name -> true/false")
-
     parent_defaults = parent.get("defaults", {}) if isinstance(parent.get("defaults", {}), dict) else {}
+    enabled_map = parent.get("enabled", {}) if isinstance(parent.get("enabled", {}), dict) else {}
 
-    print(f"[PARENT] {parent_yaml_path.name}")
-    print(f"[PARENT] Found {len(children)} child runsets")
-    print("")
+    runset_list = parent.get("runset", [])
+    if not isinstance(runset_list, list) or not runset_list:
+        raise ValueError("Parent runset must define a non-empty list under 'runset'.")
 
-    for child_rel in children:
-        child_path = _resolve_from(parent_yaml_path, child_rel)
-        if not child_path.exists():
-            raise FileNotFoundError(f"Child runset YAML not found: {child_path}")
+    for rel in runset_list:
+        runset_yaml_path = _resolve_from(parent_yaml_path, rel)
+        if not runset_yaml_path.exists():
+            raise FileNotFoundError(f"Child runset YAML not found: {runset_yaml_path}")
 
-        child_cfg = load_runset(child_path)
-        if _is_parent_runset(child_cfg):
-            _run_parent_runset(child_cfg, parent_yaml_path=child_path)
+        rs = load_runset(runset_yaml_path)
+
+        rs_name = str(rs.get("runset", runset_yaml_path.stem))
+
+        if enabled_map.get(rs_name, True) is False:
+            print(f"[SKIP RUNSET] {rs_name} ({runset_yaml_path.name})")
             continue
 
-        child_name = str(child_cfg.get("runset", child_path.stem))
-        if enabled_map.get(child_name, True) is False:
-            print(f"[SKIP RUNSET] {child_name} ({child_path.name})")
-            print("")
-            continue
+        # Merge defaults: parent defaults < child defaults
+        child_defaults = rs.get("defaults", {}) if isinstance(rs.get("defaults", {}), dict) else {}
+        rs["defaults"] = _deep_merge(parent_defaults, child_defaults)
 
-        # Merge parent defaults into child defaults (child wins)
-        child_defaults = child_cfg.get("defaults", {}) if isinstance(child_cfg.get("defaults", {}), dict) else {}
-        child_cfg["defaults"] = _deep_merge(parent_defaults, child_defaults)
-
-        _run_single_runset(child_cfg, runset_yaml_path=child_path)
+        _run_single_runset(rs, runset_yaml_path=runset_yaml_path)
         print("")
-        
+
 def _is_single_experiment(cfg: dict) -> bool:
-    # Unique key to avoid confusing with a normal case YAML
     return ("experiment" in cfg) and isinstance(cfg.get("case_yaml", None), (str, Path))
 
 def _run_single_experiment(exp: dict, *, exp_yaml_path: Path):
@@ -213,6 +203,12 @@ def _run_single_experiment(exp: dict, *, exp_yaml_path: Path):
 
     tee_default = bool(defaults.get("tee", False))
 
+    solver_defaults = defaults.get("solver", None)
+    if solver_defaults is not None and not isinstance(solver_defaults, dict):
+        raise ValueError("defaults.solver must be a dict (e.g. {name: 'highs', options: {...}})")
+    solver_name = str((solver_defaults or {}).get("name", "highs"))
+    solver_opts = (solver_defaults or {}).get("options", None)
+
     time_defaults = defaults.get("time", None)
     if time_defaults is not None and not isinstance(time_defaults, dict):
         raise ValueError("defaults.time must be a dict (e.g. {horizon: 96, dt_hours: 0.25, start: '...'})")
@@ -233,18 +229,18 @@ def _run_single_experiment(exp: dict, *, exp_yaml_path: Path):
         outputs_dir=str(outputs_dir),
         tee=tee_default,
         time_override=time_defaults,
+        solver=solver_name,
+        solver_options=solver_opts,
     )
 
     print("")
     print("[DONE] Single experiment executed.")
 
 def run_all(runset_yaml: str | Path):
-    runset_yaml_path = Path(runset_yaml)
-    if not runset_yaml_path.is_absolute():
-        runset_yaml_path = (ROOT / runset_yaml_path).resolve()
-
+    runset_yaml_path = _resolve_from(ROOT, runset_yaml)
     cfg = load_runset(runset_yaml_path)
 
+    # If this YAML defines a single experiment, run it and exit.What 
     if _is_single_experiment(cfg):
         _run_single_experiment(cfg, exp_yaml_path=runset_yaml_path)
         return
@@ -254,13 +250,11 @@ def run_all(runset_yaml: str | Path):
     else:
         _run_single_runset(cfg, runset_yaml_path=runset_yaml_path)
 
-
-def main():
-    ap = argparse.ArgumentParser()
+def _parse_args() -> argparse.Namespace:
+    ap = argparse.ArgumentParser(description="Run a runset (or parent runset).")
     ap.add_argument("--runset", default=str(ROOT / "cases" / "runset_parent.yaml"), help="Path to runset YAML")
-    args = ap.parse_args()
-    run_all(args.runset)
-
+    return ap.parse_args()
 
 if __name__ == "__main__":
-    main()
+    args = _parse_args()
+    run_all(args.runset)

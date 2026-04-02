@@ -1,103 +1,81 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping, Sequence, Optional
+from typing import Any, Dict, List, Mapping, Sequence, Tuple
 
 import pyomo.environ as pyo
 
 
-def _series_to_param_2d(houses: Sequence[str], series_by_house: Mapping[str, Sequence[float]]) -> dict[tuple[str, int], float]:
-    """
-    Build a {(house, t): value} dict for Pyomo Params over (H, T) with T indexed from 1..T.
-    """
-    any_house = next(iter(houses))
-    T = len(series_by_house[any_house])
-    out: dict[tuple[str, int], float] = {}
+def _to_2d_1_indexed_dict(
+    by_house: Mapping[str, Sequence[float]],
+    houses: Sequence[str],
+    T: int,
+) -> Dict[Tuple[str, int], float]:
+    out: Dict[Tuple[str, int], float] = {}
     for h in houses:
-        s = series_by_house[h]
-        if len(s) != T:
-            raise ValueError("All houses must have the same horizon length")
-        for k in range(T):
-            out[(h, k + 1)] = float(s[k])
+        series = list(by_house[h])
+        if len(series) != T:
+            raise ValueError(f"Series for house '{h}' must have length T={T}")
+        for t in range(1, T + 1):
+            out[(h, t)] = float(series[t - 1])
     return out
 
 
-def _series_to_param_1d(arr: Sequence[float]) -> dict[int, float]:
-    return {i + 1: float(arr[i]) for i in range(len(arr))}
-
-
 @dataclass
-class MultiHouseEnergySharingModel:
+class MultiHouseModel:
     """
-    Multi-house MILP with:
-      - Individual meters: each house has its own P_imp[h,t] and P_exp[h,t]
-      - Individual batteries: each house has its own E[h,t], P_ch[h,t], P_dis[h,t]
-      - Behind-the-scenes energy sharing between houses via a community bus:
-          P_share[h,t] is a signed variable:
-            >0 means house h sends power to the community
-            <0 means house h receives power from the community
-        Enforced by: sum_h P_share[h,t] == 0 for all t
+    Unified house-indexed MILP with one independent battery per house and no inter-house
+    energy exchange. A single-house case is represented by exactly one house id.
 
-      - PV curtailment per house (P_curt[h,t] >= 0)
-      - Optional export prohibition (allow_export=False => P_exp == 0)
+    Conventions:
+      - Time steps: m.T = RangeSet(1, T)
+      - Energy index: m.TE = RangeSet(0, T) with E[h,0] = E_init[h]
 
-    Shared-energy price support (P2P settlement):
-      - c_p2p_buy[t] : price paid by receivers (€/kWh)
-      - c_p2p_sell[t]: price received by senders (€/kWh)
-      - c_p2p_fee[t] : extra fee per traded kWh (€/kWh), applied once per trade (on P_share_out)
-
-    Notes:
-      - If settlement_in_objective=False (default), P2P buy/sell prices are *not* used in the optimization objective.
-      - If settlement_in_objective=True, the spread (buy - sell) acts like a transaction cost and can change dispatch.
-      - Fees c_p2p_fee always act as a transaction cost if non-zero.
+    Inputs:
+      loads_by_house[h][t] and pv_by_house[h][t] are 0-indexed python lists of length T.
+      c_grid / c_sell can be:
+        - shared list[float] of length T, or
+        - per-house dict[str, list[float]] of length T
     """
 
     dt: float
     allow_export: bool = True
-    P_share_max: float = 0.0
-    settlement_in_objective: bool = False
 
     def make_instance(
         self,
         *,
+        houses: List[str],
         loads_by_house: Mapping[str, Sequence[float]],
         pv_by_house: Mapping[str, Sequence[float]],
-        battery_params_by_house: Mapping[str, Mapping[str, float]],
-        c_grid: Sequence[float],
-        c_sell: Sequence[float],
-        c_p2p_buy: Optional[Sequence[float]] = None,
-        c_p2p_sell: Optional[Sequence[float]] = None,
-        c_p2p_fee: Optional[Sequence[float]] = None,
+        bat_params_by_house: Mapping[str, Mapping[str, Any]],
+        c_grid: Sequence[float] | Mapping[str, Sequence[float]],
+        c_sell: Sequence[float] | Mapping[str, Sequence[float]],
     ) -> pyo.ConcreteModel:
-        houses = [str(h) for h in loads_by_house.keys()]
-        houses.sort()
         if not houses:
-            raise ValueError("loads_by_house is empty")
+            raise ValueError("houses must be a non-empty list")
 
+        houses = [str(h) for h in houses]
         T = len(next(iter(loads_by_house.values())))
+
         for h in houses:
-            if len(loads_by_house[h]) != T:
-                raise ValueError("All load series must have same length T")
-            if len(pv_by_house[h]) != T:
-                raise ValueError("All PV series must have same length T")
-        if not (len(c_grid) == len(c_sell) == T):
-            raise ValueError("Tariff series must have length T")
+            if h not in loads_by_house or h not in pv_by_house:
+                raise KeyError(f"Missing series for house '{h}'")
+            if len(loads_by_house[h]) != T or len(pv_by_house[h]) != T:
+                raise ValueError(f"House '{h}' series must have length T={T}")
 
-        # Default P2P series to zeros
-        if c_p2p_buy is None:
-            c_p2p_buy = [0.0] * T
-        if c_p2p_sell is None:
-            c_p2p_sell = [0.0] * T
-        if c_p2p_fee is None:
-            c_p2p_fee = [0.0] * T
-        if not (len(c_p2p_buy) == len(c_p2p_sell) == len(c_p2p_fee) == T):
-            raise ValueError("P2P price series must have length T (or be None)")
-
-        # share max default: use max P_grid_max across houses if not specified
-        if self.P_share_max and self.P_share_max > 0:
-            share_max = float(self.P_share_max)
+        if isinstance(c_grid, Mapping):
+            c_grid_by_house = {h: list(c_grid[h]) for h in houses}
         else:
-            share_max = max(float(battery_params_by_house[h]["P_grid_max"]) for h in houses)
+            c_grid_by_house = {h: list(c_grid) for h in houses}
+
+        if isinstance(c_sell, Mapping):
+            c_sell_by_house = {h: list(c_sell[h]) for h in houses}
+        else:
+            c_sell_by_house = {h: list(c_sell) for h in houses}
+
+        for h in houses:
+            if len(c_grid_by_house[h]) != T or len(c_sell_by_house[h]) != T:
+                raise ValueError(f"Tariff series for house '{h}' must have length T={T}")
 
         m = pyo.ConcreteModel()
         m.H = pyo.Set(initialize=houses, ordered=True)
@@ -107,101 +85,70 @@ class MultiHouseEnergySharingModel:
         m.dt = pyo.Param(initialize=float(self.dt))
         m.kappa_exp = pyo.Param(initialize=1 if bool(self.allow_export) else 0, within=pyo.Binary)
 
-        # Tariffs
-        m.c_grid = pyo.Param(m.T, initialize=_series_to_param_1d(c_grid), within=pyo.NonNegativeReals)
-        m.c_sell = pyo.Param(m.T, initialize=_series_to_param_1d(c_sell), within=pyo.NonNegativeReals)
+        def _p(h: str, k: str, default: float) -> float:
+            return float((bat_params_by_house.get(h) or {}).get(k, default))
 
-        # P2P prices (common)
-        m.c_p2p_buy = pyo.Param(m.T, initialize=_series_to_param_1d(c_p2p_buy), within=pyo.NonNegativeReals)
-        m.c_p2p_sell = pyo.Param(m.T, initialize=_series_to_param_1d(c_p2p_sell), within=pyo.NonNegativeReals)
-        m.c_p2p_fee = pyo.Param(m.T, initialize=_series_to_param_1d(c_p2p_fee), within=pyo.NonNegativeReals)
+        m.E_init = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "E_init", 0.0))
+        m.E_min = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "E_min", 0.0))
+        m.E_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "E_max", 0.0))
+        m.P_ch_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "P_ch_max", 0.0))
+        m.P_dis_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "P_dis_max", 0.0))
+        m.eta_ch = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "eta_ch", 1.0))
+        m.eta_dis = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "eta_dis", 1.0))
+        m.P_grid_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "P_grid_max", 1e9))
 
-        # Time series per house
-        m.Load = pyo.Param(m.H, m.T, initialize=_series_to_param_2d(houses, loads_by_house), within=pyo.NonNegativeReals)
-        m.PV = pyo.Param(m.H, m.T, initialize=_series_to_param_2d(houses, pv_by_house), within=pyo.NonNegativeReals)
+        m.Load = pyo.Param(m.H, m.T, initialize=_to_2d_1_indexed_dict(loads_by_house, houses, T), within=pyo.NonNegativeReals)
+        m.PV = pyo.Param(m.H, m.T, initialize=_to_2d_1_indexed_dict(pv_by_house, houses, T), within=pyo.NonNegativeReals)
+        m.c_grid = pyo.Param(m.H, m.T, initialize=_to_2d_1_indexed_dict(c_grid_by_house, houses, T), within=pyo.NonNegativeReals)
+        m.c_sell = pyo.Param(m.H, m.T, initialize=_to_2d_1_indexed_dict(c_sell_by_house, houses, T), within=pyo.NonNegativeReals)
 
-        # Battery/grid params per house
-        def _p(h, key):
-            return float(battery_params_by_house[str(h)][key])
-
-        m.E_init = pyo.Param(m.H, initialize={h: _p(h, "E_init") for h in houses})
-        m.E_min = pyo.Param(m.H, initialize={h: _p(h, "E_min") for h in houses})
-        m.E_max = pyo.Param(m.H, initialize={h: _p(h, "E_max") for h in houses})
-        m.P_ch_max = pyo.Param(m.H, initialize={h: _p(h, "P_ch_max") for h in houses})
-        m.P_dis_max = pyo.Param(m.H, initialize={h: _p(h, "P_dis_max") for h in houses})
-        m.eta_ch = pyo.Param(m.H, initialize={h: _p(h, "eta_ch") for h in houses})
-        m.eta_dis = pyo.Param(m.H, initialize={h: _p(h, "eta_dis") for h in houses})
-        m.P_grid_max = pyo.Param(m.H, initialize={h: _p(h, "P_grid_max") for h in houses})
-
-        # Vars (per house, per time)
         m.P_ch = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
         m.P_dis = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
         m.P_imp = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
         m.P_exp = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
         m.P_curt = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
-
-        # P2P sharing flows
-        m.P_share_out = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals, bounds=(0.0, share_max))
-        m.P_share_in = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals, bounds=(0.0, share_max))
-        m.P_share = pyo.Var(m.H, m.T, within=pyo.Reals, bounds=(-share_max, share_max))
-
         m.E = pyo.Var(m.H, m.TE, within=pyo.NonNegativeReals)
 
         m.x = pyo.Var(m.H, m.T, within=pyo.Binary)
         m.y = pyo.Var(m.H, m.T, within=pyo.Binary)
 
-        m.init_energy = pyo.Constraint(m.H, rule=lambda mm, h: mm.E[h, 0] == mm.E_init[h])
-
         def energy_dyn_rule(mm, h, t):
-            return mm.E[h, t] == mm.E[h, t - 1] + mm.eta_ch[h] * mm.P_ch[h, t] * mm.dt - (1.0 / mm.eta_dis[h]) * mm.P_dis[h, t] * mm.dt
+            return mm.E[h, t] == mm.E[h, t - 1] + (mm.eta_ch[h] * mm.P_ch[h, t] - (1.0 / mm.eta_dis[h]) * mm.P_dis[h, t]) * mm.dt
 
         m.energy_dyn = pyo.Constraint(m.H, m.T, rule=energy_dyn_rule)
+        m.energy_init = pyo.Constraint(m.H, rule=lambda mm, h: mm.E[h, 0] == mm.E_init[h])
+        m.energy_bounds = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: pyo.inequality(mm.E_min[h], mm.E[h, t], mm.E_max[h]))
 
-        def energy_bounds_rule(mm, h, t):
-            return pyo.inequality(mm.E_min[h], mm.E[h, t], mm.E_max[h])
+        m.no_simul_ch = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_ch[h, t] <= mm.P_ch_max[h] * mm.x[h, t])
+        m.no_simul_dis = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_dis[h, t] <= mm.P_dis_max[h] * (1 - mm.x[h, t]))
 
-        m.energy_bounds = pyo.Constraint(m.H, m.TE, rule=energy_bounds_rule)
+        m.no_simul_imp = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_imp[h, t] <= mm.P_grid_max[h] * mm.y[h, t])
+        m.no_simul_exp = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_exp[h, t] <= mm.P_grid_max[h] * mm.kappa_exp * (1 - mm.y[h, t]))
 
-        m.no_simul_batt_ch = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_ch[h, t] <= mm.x[h, t] * mm.P_ch_max[h])
-        m.no_simul_batt_dis = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_dis[h, t] <= (1 - mm.x[h, t]) * mm.P_dis_max[h])
+        m.curt_limit = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_curt[h, t] <= mm.PV[h, t])
 
-        m.no_simul_grid_imp = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_imp[h, t] <= mm.y[h, t] * mm.P_grid_max[h])
-
-        def no_simul_grid_exp_rule(mm, h, t):
-            return mm.P_exp[h, t] <= (1 - mm.y[h, t]) * mm.P_grid_max[h] * mm.kappa_exp
-
-        m.no_simul_grid_exp = pyo.Constraint(m.H, m.T, rule=no_simul_grid_exp_rule)
-
-        m.curt_upper = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_curt[h, t] <= mm.PV[h, t])
-
-        # link signed share to in/out
-        m.share_link = pyo.Constraint(m.H, m.T, rule=lambda mm, h, t: mm.P_share[h, t] == mm.P_share_out[h, t] - mm.P_share_in[h, t])
-
-        def house_balance_rule(mm, h, t):
-            return (
-                mm.P_imp[h, t] + mm.PV[h, t] + mm.P_dis[h, t]
-                == mm.Load[h, t] + mm.P_ch[h, t] + mm.P_exp[h, t] + mm.P_curt[h, t] + mm.P_share[h, t]
+        def power_balance_rule(mm, h, t):
+            return mm.Load[h, t] == (
+                mm.PV[h, t]
+                - mm.P_curt[h, t]
+                + mm.P_dis[h, t]
+                - mm.P_ch[h, t]
+                + mm.P_imp[h, t]
+                - mm.P_exp[h, t]
             )
 
-        m.house_balance = pyo.Constraint(m.H, m.T, rule=house_balance_rule)
+        m.power_balance = pyo.Constraint(m.H, m.T, rule=power_balance_rule)
 
-        m.community_balance = pyo.Constraint(m.T, rule=lambda mm, t: sum(mm.P_share[h, t] for h in mm.H) == 0.0)
-
-        def obj_rule(mm):
-            grid_cost = sum((mm.c_grid[t] * mm.P_imp[h, t] - mm.c_sell[t] * mm.P_exp[h, t]) * mm.dt for h in mm.H for t in mm.T)
-
-            # fee counted ONCE per traded kWh (use outflows)
-            fee_cost = sum(mm.c_p2p_fee[t] * mm.P_share_out[h, t] * mm.dt for h in mm.H for t in mm.T)
-
-            if self.settlement_in_objective:
-                settle_cost = sum(
-                    (mm.c_p2p_buy[t] * mm.P_share_in[h, t] - mm.c_p2p_sell[t] * mm.P_share_out[h, t]) * mm.dt
-                    for h in mm.H for t in mm.T
-                )
-                return grid_cost + fee_cost + settle_cost
-
-            return grid_cost + fee_cost
-
-        m.obj = pyo.Objective(rule=obj_rule, sense=pyo.minimize)
-
+        m.obj = pyo.Objective(
+            expr=sum(
+                (m.c_grid[h, t] * m.P_imp[h, t] - m.c_sell[h, t] * m.P_exp[h, t]) * m.dt
+                for h in m.H
+                for t in m.T
+            ),
+            sense=pyo.minimize,
+        )
         return m
+
+
+# Backward-compatible alias kept for legacy imports.
+MultiHouseEnergySharingModel = MultiHouseModel

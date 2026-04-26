@@ -1,16 +1,66 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Sequence, Tuple, Optional
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 import datetime as dt
 
 import yaml
 
 
-def load_case_yaml(path: str | Path) -> dict:
-    path = Path(path)
-    with path.open("r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursive merge: dicts merge key-wise, scalars from `override` win."""
+    out = dict(base or {})
+    for k, v in (override or {}).items():
+        if isinstance(v, dict) and isinstance(out.get(k), dict):
+            out[k] = _deep_merge(out[k], v)
+        else:
+            out[k] = v
+    return out
+
+
+def load_case_yaml(path: str | Path, *, _seen: Optional[set] = None) -> dict:
+    """
+    Load a case YAML, with optional `extends:` inheritance.
+
+    A YAML may declare:
+        extends: relative/path/to/base.yaml          # single base
+        extends: [base1.yaml, base2.yaml, ...]       # multiple, later wins
+
+    Bases are merged recursively (deep_merge); the current YAML's keys then
+    override the merged base. The `extends` key itself is removed from the
+    returned dict. Cyclic chains raise ValueError.
+    """
+    p = Path(path).resolve()
+
+    seen = set(_seen) if _seen else set()
+    if p in seen:
+        raise ValueError(f"Circular 'extends' detected at: {p}")
+    seen.add(p)
+
+    with p.open("r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f) or {}
+
+    if not isinstance(cfg, dict):
+        return cfg
+
+    extends = cfg.pop("extends", None)
+    if extends is None:
+        return cfg
+
+    extends_list = [extends] if isinstance(extends, (str, Path)) else list(extends)
+    merged: dict = {}
+    for ep in extends_list:
+        ep_path = Path(ep)
+        if not ep_path.is_absolute():
+            ep_path = (p.parent / ep_path).resolve()
+        if not ep_path.exists():
+            raise FileNotFoundError(f"extends target not found: {ep_path} (from {p})")
+        base = load_case_yaml(ep_path, _seen=seen)
+        if not isinstance(base, dict):
+            raise ValueError(f"extends target {ep_path} must parse to a dict")
+        merged = _deep_merge(merged, base)
+
+    return _deep_merge(merged, cfg)
 
 
 def load_series_csv_1col(path: str | Path, T: int | None = None) -> list[float]:
@@ -21,20 +71,17 @@ def load_series_csv_1col(path: str | Path, T: int | None = None) -> list[float]:
             s = line.strip()
             if not s:
                 continue
-            # split by comma/semicolon/whitespace
             parts = [p for p in s.replace(";", ",").split(",") if p != ""]
             if len(parts) == 0:
                 continue
             try:
                 out.append(float(parts[0]))
-            except Exception:
-                # header or non-numeric
+            except ValueError:
                 continue
 
     if T is None:
         return out
 
-    # pad/truncate to T
     if len(out) >= T:
         return out[:T]
     if len(out) == 0:
@@ -53,19 +100,12 @@ def _pad_or_trunc(arr: Sequence[float], T: int, *, pad_with_last: bool = True) -
 
 
 def _parse_hhmm(s: str) -> int:
-    """
-    "HH:MM" -> minutes since midnight.
-    """
     s = str(s).strip()
     hh, mm = s.split(":")
     return int(hh) * 60 + int(mm)
 
 
 def _build_time_index(cfg: dict, T: int) -> List[dt.datetime]:
-    """
-    Build a datetime index using cfg.time.start and cfg.time.dt_hours.
-    Falls back to a fixed start if missing.
-    """
     time_cfg = cfg.get("time", {}) if isinstance(cfg.get("time", {}), dict) else {}
     start = time_cfg.get("start")
     dt_hours = float(time_cfg.get("dt_hours", 1.0))
@@ -78,7 +118,7 @@ def _build_time_index(cfg: dict, T: int) -> List[dt.datetime]:
         s = str(start)
         try:
             base = dt.datetime.fromisoformat(s)
-        except Exception:
+        except ValueError:
             base = dt.datetime.strptime(s, "%Y-%m-%d %H:%M")
 
     step = dt.timedelta(hours=dt_hours)
@@ -102,13 +142,6 @@ def _expand_flat(spec: Any, T: int) -> List[float]:
 
 
 def _expand_bi_horaria(spec: Any, tindex: List[dt.datetime]) -> List[float]:
-    """
-    spec supports:
-      - scalar/list -> treated as flat
-      - dict with:
-          peak / offpeak (or ponta / vazio)
-          peak_periods: list of [start_hhmm, end_hhmm] strings
-    """
     T = len(tindex)
     if not isinstance(spec, dict):
         return _expand_flat(spec, T)
@@ -144,12 +177,6 @@ def _expand_bi_horaria(spec: Any, tindex: List[dt.datetime]) -> List[float]:
 
 
 def _expand_monthly(spec: Any, tindex: List[dt.datetime]) -> List[float]:
-    """
-    spec supports:
-      - scalar/list -> flat
-      - dict with:
-          by_month: {default: x, 1: x1, "2": x2, ...}
-    """
     T = len(tindex)
     if not isinstance(spec, dict):
         return _expand_flat(spec, T)
@@ -168,13 +195,6 @@ def _expand_monthly(spec: Any, tindex: List[dt.datetime]) -> List[float]:
 
 
 def _expand_week_weekend(spec: Any, tindex: List[dt.datetime]) -> List[float]:
-    """
-    spec supports:
-      - scalar/list -> flat
-      - dict with:
-          weekday: <subspec>
-          weekend: <subspec>
-    """
     T = len(tindex)
     if not isinstance(spec, dict):
         return _expand_flat(spec, T)
@@ -193,12 +213,6 @@ def _expand_week_weekend(spec: Any, tindex: List[dt.datetime]) -> List[float]:
 
 
 def _expand_any(spec: Any, tindex: List[dt.datetime], model_hint: Optional[str] = None) -> List[float]:
-    """
-    Expand a tariff spec to a series.
-
-    Accepts an optional model hint from cfg.tariffs.model ("bi_horaria", "week_weekend", "monthly"),
-    but mainly infers behavior by keys.
-    """
     T = len(tindex)
 
     if spec is None or isinstance(spec, (int, float, list, tuple)):
@@ -242,29 +256,6 @@ def build_tariffs(
     houses: Optional[Sequence[str]] = None,
     root: Optional[Path] = None,
 ) -> Tuple[List[float] | Dict[str, List[float]], List[float] | Dict[str, List[float]]]:
-    """
-    Build grid import/export price series.
-
-    Supports case YAML format:
-      tariffs:
-        model: bi_horaria | week_weekend | monthly | (omitted -> flat)
-        grid_buy: <spec>
-        grid_sell: <spec>
-      houses:
-        <H>:
-          tariffs:
-            grid_buy: <spec>   # override optional
-            grid_sell: <spec>  # override optional
-
-    Spec can be:
-      - scalar -> constant series
-      - list -> time series
-      - dict -> one of:
-          - {"flat": x} / {"value": x}
-          - bi_horaria: {"peak": x, "offpeak": y, "peak_periods": [[HH:MM,HH:MM], ...]}
-          - week_weekend: {"weekday": <spec>, "weekend": <spec>}
-          - monthly: {"by_month": {"default": x, "1": x1, "2": x2, ...}}
-    """
     tindex = _build_time_index(cfg, T)
     tariffs_cfg = cfg.get("tariffs", {}) if isinstance(cfg.get("tariffs", {}), dict) else {}
     model_hint = tariffs_cfg.get("model", None)

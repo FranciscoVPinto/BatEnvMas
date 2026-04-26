@@ -10,9 +10,7 @@ COMMUNITY_ID = "_COMMUNITY"
 
 
 def aggregate_community_timeseries(house_dfs: Dict[str, pd.DataFrame]) -> pd.DataFrame:
-    """
-    Aggregate multiple house result CSVs into a synthetic community dataframe.
-    """
+    """Aggregate multiple house result CSVs into a synthetic community dataframe."""
     if not house_dfs:
         return pd.DataFrame()
 

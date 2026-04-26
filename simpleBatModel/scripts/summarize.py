@@ -1,39 +1,46 @@
 from __future__ import annotations
 
+import argparse
+import logging
 import sys
 from pathlib import Path
-import argparse
-import yaml
+
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
-SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
 
-from batEnv.io import load_case_yaml
-from batEnv.plotting import compute_summary_metrics
-from batEnv.utils.community_metrics import COMMUNITY_ID, aggregate_community_timeseries, compute_community_extra_metrics
+from _common import (
+    add_src_to_path,
+    load_yaml_dict,
+    read_house_csvs,
+    setup_logging,
+)
+
+add_src_to_path(ROOT)
+
+from batEnv.io import load_case_yaml, validate_runset_cfg  # noqa: E402
+from batEnv.plotting import compute_summary_metrics  # noqa: E402
+from batEnv.utils.community_metrics import (  # noqa: E402
+    COMMUNITY_ID,
+    aggregate_community_timeseries,
+    compute_community_extra_metrics,
+)
+
+
+logger = logging.getLogger(__name__)
 
 
 def load_runset(path: str | Path) -> dict:
-    path = Path(path)
-    if not path.is_absolute():
-        path = (ROOT / path).resolve()
-    with path.open("r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
-    if not isinstance(cfg, dict):
-        raise ValueError("runset YAML must parse to a dict.")
-    cfg["_runset_path"] = str(path.resolve())
+    p = Path(path)
+    if not p.is_absolute():
+        p = (ROOT / p).resolve()
+    cfg = load_yaml_dict(p)
+    validate_runset_cfg(cfg)
+    cfg["_runset_path"] = str(p.resolve())
     return cfg
-
-
-def read_house_csvs(case_out_dir: Path) -> dict[str, pd.DataFrame]:
-    dfs: dict[str, pd.DataFrame] = {}
-    for csv_path in sorted(case_out_dir.glob("results_house_*.csv")):
-        hid = csv_path.stem.replace("results_house_", "")
-        dfs[hid] = pd.read_csv(csv_path)
-    return dfs
 
 
 def summarize_runset(runset_yaml: str | Path) -> Path:
@@ -55,13 +62,12 @@ def summarize_runset(runset_yaml: str | Path) -> Path:
         raise ValueError("runset.cases must be a non-empty list")
 
     rows = []
-
     for rel in case_files:
         case_path = Path(rel)
         if not case_path.is_absolute():
             case_path = (base_dir / case_path).resolve()
         if not case_path.exists():
-            print(f"[WARN] Missing case yaml: {case_path}")
+            logger.warning("Missing case yaml: %s", case_path)
             continue
 
         cfg = load_case_yaml(case_path)
@@ -74,7 +80,7 @@ def summarize_runset(runset_yaml: str | Path) -> Path:
 
         out_dir = outputs_dir / case_name
         if not out_dir.exists():
-            print(f"[WARN] Missing outputs for case '{case_name}': {out_dir}")
+            logger.warning("Missing outputs for case '%s': %s", case_name, out_dir)
             continue
 
         house_dfs = read_house_csvs(out_dir)
@@ -102,14 +108,16 @@ def summarize_runset(runset_yaml: str | Path) -> Path:
     outdir.mkdir(parents=True, exist_ok=True)
     outpath = outdir / f"{runset_name}_summary.csv"
     summary.to_csv(outpath)
-    print(f"[OK] Wrote summary: {outpath}")
+    logger.info("Wrote summary: %s", outpath)
     return outpath
 
 
-def main():
+def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--runset", default=str(ROOT / "cases" / "runset.yaml"), help="Path to runset YAML")
+    ap.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging")
     args = ap.parse_args()
+    setup_logging(verbose=args.verbose)
     summarize_runset(args.runset)
 
 

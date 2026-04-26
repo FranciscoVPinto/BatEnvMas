@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from .loaders import load_series_csv_1col
 
+
+# ---------- small utilities ----------
 
 def _abs_from_root(root: Path, p: str | Path) -> Path:
     p = Path(p)
@@ -25,23 +27,17 @@ def _equal_split(houses: List[str]) -> Dict[str, float]:
     return {h: w for h in houses}
 
 
+# ---------- consumption-based fallbacks ----------
+
 def _alphas_from_consumption_instant(
     loads_by_house: Dict[str, List[float]],
     houses: List[str],
     T: int,
     *,
-    zero_denom: str = "equal_split",  # equal_split | keep_previous
+    zero_denom: str = "equal_split",
 ) -> Tuple[Dict[str, List[float]], Dict[str, Any]]:
-    """
-    alpha_i(t) = Load_i(t) / sum_j Load_j(t)
-
-    Se sum_j Load_j(t) == 0:
-      - zero_denom="equal_split": alpha_i(t) = 1/N
-      - zero_denom="keep_previous": alpha_i(t) = alpha_i(t-1) (t=0 -> equal_split)
-    """
     alpha_series: Dict[str, List[float]] = {h: [0.0] * T for h in houses}
     denom_series: List[float] = []
-
     prev = _equal_split(houses)
 
     for t in range(T):
@@ -51,14 +47,13 @@ def _alphas_from_consumption_instant(
         if denom > 0:
             a_t = {h: float(loads_by_house[h][t]) / denom for h in houses}
             prev = a_t
+        elif zero_denom == "equal_split":
+            a_t = _equal_split(houses)
+            prev = a_t
+        elif zero_denom == "keep_previous":
+            a_t = prev
         else:
-            if zero_denom == "equal_split":
-                a_t = _equal_split(houses)
-                prev = a_t
-            elif zero_denom == "keep_previous":
-                a_t = prev
-            else:
-                raise ValueError(f"Unsupported fallback.zero_denom='{zero_denom}'")
+            raise ValueError(f"Unsupported fallback.zero_denom='{zero_denom}'")
 
         for h in houses:
             alpha_series[h][t] = float(a_t[h])
@@ -77,20 +72,201 @@ def _alphas_from_consumption_mean(
     houses: List[str],
     T: int,
 ) -> Tuple[Dict[str, List[float]], Dict[str, Any]]:
-    """
-    alpha_i = mean(Load_i) / sum_j mean(Load_j)  (constante no tempo)
-    """
     means = {h: float(sum(loads_by_house[h])) / float(T) for h in houses}
     denom = float(sum(means.values()))
-    if denom > 0:
-        alpha_const = {h: means[h] / denom for h in houses}
-    else:
-        alpha_const = _equal_split(houses)
-
+    alpha_const = {h: means[h] / denom for h in houses} if denom > 0 else _equal_split(houses)
     alpha_series = {h: [float(alpha_const[h])] * T for h in houses}
     info = {"fallback_mode": "consumption_mean", "means": means, "mean_sum": denom}
     return alpha_series, info
 
+
+# ---------- mode A: per-house PV ----------
+
+def _per_house_pv(data_cfg: dict, houses: List[str], T: int, root: Path) -> Dict[str, List[float]]:
+    pv_cfg = data_cfg.get("pv")
+
+    if isinstance(pv_cfg, str):
+        pv_common = load_series_csv_1col(_abs_from_root(root, pv_cfg), T=T)
+        return {h: list(pv_common) for h in houses}
+
+    if isinstance(pv_cfg, dict):
+        pv_cfg_str = {str(k): v for k, v in pv_cfg.items()}
+        missing = [h for h in houses if h not in pv_cfg_str]
+        if missing:
+            raise ValueError(f"Missing data.pv for houses: {missing}")
+        return {h: load_series_csv_1col(_abs_from_root(root, pv_cfg_str[h]), T=T) for h in houses}
+
+    raise ValueError("data.pv must be a string path or a dict {house: path}")
+
+
+# ---------- mode B: shared PV_total ----------
+
+def _load_pv_total(data_cfg: dict, root: Path, T: int) -> List[float]:
+    pv_total_path = data_cfg.get("pv_total")
+
+    if isinstance(pv_total_path, (list, tuple)):
+        pv_total = [0.0] * T
+        for p in pv_total_path:
+            series = load_series_csv_1col(_abs_from_root(root, p), T=T)
+            pv_total = [a + b for a, b in zip(pv_total, series)]
+        return pv_total
+
+    return load_series_csv_1col(_abs_from_root(root, pv_total_path), T=T)
+
+
+def _alphas_from_scalar(
+    alpha_map: Any,
+    houses: List[str],
+    T: int,
+    *,
+    normalize: bool,
+    strict_sum_to_one: bool,
+    info: Dict[str, Any],
+    fallback_or_raise: Callable[[str, str], Optional[Dict[str, List[float]]]],
+) -> Dict[str, List[float]]:
+    if not isinstance(alpha_map, dict):
+        raise ValueError("sharing.alpha must be a dict {house: scalar}")
+
+    alpha_map_str = {str(k): float(v) for k, v in alpha_map.items()}
+
+    missing = [h for h in houses if h not in alpha_map_str]
+    if missing:
+        fb = fallback_or_raise(
+            f"missing scalar alpha for {missing}",
+            f"Missing sharing.alpha for houses: {missing}",
+        )
+        if fb is not None:
+            return fb
+
+    for h in houses:
+        if alpha_map_str[h] < 0:
+            fb = fallback_or_raise(
+                f"negative scalar alpha for house {h}",
+                f"Alpha for house '{h}' is negative: {alpha_map_str[h]}",
+            )
+            if fb is not None:
+                return fb
+
+    s = sum(alpha_map_str[h] for h in houses)
+    info["alpha_sum"] = float(s)
+
+    if strict_sum_to_one and abs(s - 1.0) > 1e-6:
+        fb = fallback_or_raise(
+            f"strict_sum_to_one violated (sum={s})",
+            f"Sum of sharing.alpha is {s} but strict_sum_to_one=true (expected 1.0).",
+        )
+        if fb is not None:
+            return fb
+
+    alpha_used = dict(alpha_map_str)
+    if normalize and abs(s - 1.0) > 1e-12:
+        alpha_used = _normalize(alpha_used)
+        info["alpha_sum_normalized"] = float(sum(alpha_used[h] for h in houses))
+    elif abs(s - 1.0) > 1e-6:
+        info["warnings"].append(
+            f"Sum of alphas is {s:.6f} (not 1.0). PV allocations follow given weights."
+        )
+
+    return {h: [float(alpha_used[h])] * T for h in houses}
+
+
+def _alphas_from_profile(
+    alpha_profile: Any,
+    houses: List[str],
+    T: int,
+    root: Path,
+    *,
+    normalize: bool,
+    strict_sum_to_one: bool,
+    info: Dict[str, Any],
+    fallback_or_raise: Callable[[str, str], Optional[Dict[str, List[float]]]],
+) -> Tuple[Dict[str, List[float]], Optional[List[float]]]:
+    if not isinstance(alpha_profile, dict):
+        raise ValueError("sharing.alpha_profile must be a dict {house: csv_path}")
+
+    alpha_profile_str = {str(k): v for k, v in alpha_profile.items()}
+
+    missing = [h for h in houses if h not in alpha_profile_str]
+    if missing:
+        fb = fallback_or_raise(
+            f"missing alpha_profile for {missing}",
+            f"Missing sharing.alpha_profile for houses: {missing}",
+        )
+        if fb is not None:
+            return fb, None
+
+    raw: Dict[str, List[float]] = {}
+    for h in houses:
+        a_ser = load_series_csv_1col(_abs_from_root(root, alpha_profile_str[h]), T=T)
+        for t, val in enumerate(a_ser):
+            if float(val) < 0:
+                fb = fallback_or_raise(
+                    f"negative alpha_profile for house {h} at t={t}",
+                    f"Alpha_profile negative for house '{h}' at t={t}: {val}",
+                )
+                if fb is not None:
+                    return fb, None
+        raw[h] = [float(x) for x in a_ser]
+
+    out: Dict[str, List[float]] = {h: [0.0] * T for h in houses}
+    alpha_sum_series: List[float] = []
+
+    for t in range(T):
+        a_t = {h: raw[h][t] for h in houses}
+        s = float(sum(a_t.values()))
+        alpha_sum_series.append(s)
+
+        if strict_sum_to_one and abs(s - 1.0) > 1e-6:
+            fb = fallback_or_raise(
+                f"strict_sum_to_one violated at t={t} (sum={s})",
+                f"At t={t}, sum(alpha_profile)={s} but strict_sum_to_one=true.",
+            )
+            if fb is not None:
+                return fb, None
+
+        if normalize and s > 0 and abs(s - 1.0) > 1e-12:
+            a_t = _normalize(a_t)
+
+        for h in houses:
+            out[h][t] = float(a_t[h])
+
+    info["alpha_sum_min"] = float(min(alpha_sum_series)) if alpha_sum_series else None
+    info["alpha_sum_max"] = float(max(alpha_sum_series)) if alpha_sum_series else None
+
+    if (not normalize) and alpha_sum_series and (
+        abs(info["alpha_sum_min"] - 1.0) > 1e-6 or abs(info["alpha_sum_max"] - 1.0) > 1e-6
+    ):
+        info["warnings"].append(
+            f"alpha_profile sums vary (min={info['alpha_sum_min']:.6f}, "
+            f"max={info['alpha_sum_max']:.6f}) and normalize=false."
+        )
+
+    return out, alpha_sum_series
+
+
+def _finalize_shared(
+    alpha_series: Dict[str, List[float]],
+    pv_total: List[float],
+    houses: List[str],
+    T: int,
+    info: Dict[str, Any],
+    debug: Dict[str, Any],
+    *,
+    alpha_sum: Optional[List[float]] = None,
+) -> Tuple[Dict[str, List[float]], Dict[str, Any], Dict[str, Any]]:
+    if alpha_sum is None:
+        alpha_sum = [sum(alpha_series[h][t] for h in houses) for t in range(T)]
+    pv_by_house = {h: [alpha_series[h][t] * pv_total[t] for t in range(T)] for h in houses}
+    debug.update({
+        "pv_mode": "shared_alpha",
+        "pv_total": pv_total,
+        "alpha_used": alpha_series,
+        "alpha_sum": alpha_sum,
+    })
+    return pv_by_house, info, debug
+
+
+# ---------- public API ----------
 
 def prepare_pv_by_house(
     cfg: dict,
@@ -100,27 +276,7 @@ def prepare_pv_by_house(
     root: Path,
     loads_by_house: Optional[Dict[str, List[float]]] = None,
 ) -> Tuple[Dict[str, List[float]], Dict[str, Any], Dict[str, Any]]:
-    """
-    Constrói PV_i(t) por casa.
-
-    Returns:
-      pv_by_house: {house_id: [PV_i(t)]}
-      info: diagnóstico pequeno (ok para meta.yaml)
-      debug: séries (ideal exportar para CSV em results/<case>/preprocess/)
-
-    Modos PV (mutuamente exclusivos):
-      A) data.pv (legacy): str ou dict por casa
-      B) data.pv_total + sharing (shared PV)
-
-    Shared PV suporta:
-      - sharing.alpha (escalar por casa)
-      - sharing.alpha_profile (série por casa)
-      - normalize / strict_sum_to_one
-      - fallback:
-          mode: none | consumption_instant | consumption_mean
-          apply_when: invalid_or_missing | always
-          zero_denom: equal_split | keep_previous   (apenas no instant)
-    """
+    """Build PV_i(t) per house."""
     data_cfg = cfg.get("data", {})
     if not isinstance(data_cfg, dict):
         raise ValueError("data must be a dict")
@@ -133,44 +289,18 @@ def prepare_pv_by_house(
 
     if has_pv and has_pv_total:
         raise ValueError("Ambiguous PV definition: use either data.pv OR data.pv_total, not both.")
-    if (not has_pv) and (not has_pv_total):
+    if not has_pv and not has_pv_total:
         raise ValueError("Missing PV definition: provide either data.pv or data.pv_total.")
 
     # Mode A: per-house PV
     if has_pv:
-        pv_cfg = data_cfg.get("pv")
         info["mode"] = "per_house"
-        pv_by_house: Dict[str, List[float]] = {}
-
-        if isinstance(pv_cfg, str):
-            pv_common = load_series_csv_1col(_abs_from_root(root, pv_cfg), T=T)
-            for h in houses:
-                pv_by_house[h] = list(pv_common)
-
-        elif isinstance(pv_cfg, dict):
-            pv_cfg_str = {str(k): v for k, v in pv_cfg.items()}
-            missing = [h for h in houses if h not in pv_cfg_str]
-            if missing:
-                raise ValueError(f"Missing data.pv for houses: {missing}")
-            for h in houses:
-                pv_by_house[h] = load_series_csv_1col(_abs_from_root(root, pv_cfg_str[h]), T=T)
-
-        else:
-            raise ValueError("data.pv must be a string path or a dict {house: path}")
-
         debug["pv_mode"] = "per_house"
+        pv_by_house = _per_house_pv(data_cfg, houses, T, root)
         return pv_by_house, info, debug
 
     # Mode B: shared PV_total
-    pv_total_path = data_cfg.get("pv_total")
-    
-    if isinstance(pv_total_path, (list, tuple)):
-        pv_total = [0.0] * T
-        for p in pv_total_path:
-            series = load_series_csv_1col(_abs_from_root(root, p), T=T)
-            pv_total = [a + b for a, b in zip(pv_total, series)]
-    else:
-        pv_total = load_series_csv_1col(_abs_from_root(root, pv_total_path), T=T)
+    pv_total = _load_pv_total(data_cfg, root, T)
 
     sharing_cfg = cfg.get("sharing", {})
     if not isinstance(sharing_cfg, dict):
@@ -185,17 +315,15 @@ def prepare_pv_by_house(
 
     fb_cfg = sharing_cfg.get("fallback", {}) if isinstance(sharing_cfg.get("fallback", {}), dict) else {}
     fb_mode = str(fb_cfg.get("mode", "none"))
-    fb_apply_when = str(fb_cfg.get("apply_when", "invalid_or_missing"))  # or "always"
+    fb_apply_when = str(fb_cfg.get("apply_when", "invalid_or_missing"))
     fb_zero_denom = str(fb_cfg.get("zero_denom", "equal_split"))
 
-    info.update(
-        {
-            "mode": "shared_alpha",
-            "normalize": normalize,
-            "strict_sum_to_one": strict_sum_to_one,
-            "fallback": {"mode": fb_mode, "apply_when": fb_apply_when, "zero_denom": fb_zero_denom},
-        }
-    )
+    info.update({
+        "mode": "shared_alpha",
+        "normalize": normalize,
+        "strict_sum_to_one": strict_sum_to_one,
+        "fallback": {"mode": fb_mode, "apply_when": fb_apply_when, "zero_denom": fb_zero_denom},
+    })
 
     alpha_map = sharing_cfg.get("alpha", None)
     alpha_profile = sharing_cfg.get("alpha_profile", None)
@@ -203,171 +331,61 @@ def prepare_pv_by_house(
     if (alpha_map is not None) and (alpha_profile is not None):
         raise ValueError("Provide only one of sharing.alpha or sharing.alpha_profile, not both.")
 
-    def _need_fallback(reason: str) -> bool:
-        info["warnings"].append(f"FALLBACK trigger: {reason}")
-        return fb_mode in ("consumption_instant", "consumption_mean")
-
-    def _build_alpha_series_via_fallback() -> Tuple[Dict[str, List[float]], Dict[str, Any]]:
+    def build_fallback_alpha() -> Dict[str, List[float]]:
         if loads_by_house is None:
             raise ValueError("Fallback based on consumption requires loads_by_house to be provided.")
         if fb_mode == "consumption_instant":
-            return _alphas_from_consumption_instant(loads_by_house, houses, T, zero_denom=fb_zero_denom)
-        if fb_mode == "consumption_mean":
-            return _alphas_from_consumption_mean(loads_by_house, houses, T)
-        raise ValueError(f"Unsupported fallback.mode='{fb_mode}'")
+            alpha_series, fb_info = _alphas_from_consumption_instant(
+                loads_by_house, houses, T, zero_denom=fb_zero_denom
+            )
+        elif fb_mode == "consumption_mean":
+            alpha_series, fb_info = _alphas_from_consumption_mean(loads_by_house, houses, T)
+        else:
+            raise ValueError(f"Unsupported fallback.mode='{fb_mode}'")
+        info["fallback_used"] = True
+        info["fallback_details"] = fb_info
+        return alpha_series
 
+    def fallback_or_raise(reason: str, raise_msg: str) -> Optional[Dict[str, List[float]]]:
+        if fb_mode == "none":
+            raise ValueError(raise_msg)
+        info["warnings"].append(f"FALLBACK trigger: {reason}")
+        if fb_mode not in ("consumption_instant", "consumption_mean"):
+            raise ValueError(raise_msg)
+        return build_fallback_alpha()
+
+    # B1: forced fallback
     if fb_apply_when == "always":
         if fb_mode == "none":
             raise ValueError("fallback.apply_when=always requires fallback.mode != none")
-        alpha_series, fb_info = _build_alpha_series_via_fallback()
-        info["fallback_used"] = True
-        info["fallback_details"] = fb_info
+        alpha_series = build_fallback_alpha()
+        return _finalize_shared(alpha_series, pv_total, houses, T, info, debug)
 
-        alpha_sum = [sum(alpha_series[h][t] for h in houses) for t in range(T)]
-        pv_by_house = {h: [alpha_series[h][t] * pv_total[t] for t in range(T)] for h in houses}
-
-        debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-        return pv_by_house, info, debug
-
-    # Try provided alpha definitions, fallback only if invalid/missing
+    # B2: no provided alpha, must use fallback
     if alpha_map is None and alpha_profile is None:
         if fb_mode == "none":
-            raise ValueError("For shared PV, provide sharing.alpha or sharing.alpha_profile, or set a fallback.mode.")
-        alpha_series, fb_info = _build_alpha_series_via_fallback()
-        info["fallback_used"] = True
-        info["fallback_details"] = fb_info
-
-        alpha_sum = [sum(alpha_series[h][t] for h in houses) for t in range(T)]
-        pv_by_house = {h: [alpha_series[h][t] * pv_total[t] for t in range(T)] for h in houses}
-
-        debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-        return pv_by_house, info, debug
-
-    if alpha_map is not None:
-        if not isinstance(alpha_map, dict):
-            raise ValueError("sharing.alpha must be a dict {house: scalar}")
-
-        alpha_map_str = {str(k): float(v) for k, v in alpha_map.items()}
-
-        missing = [h for h in houses if h not in alpha_map_str]
-        if missing:
-            if fb_mode != "none" and _need_fallback(f"missing scalar alpha for {missing}"):
-                alpha_series, fb_info = _build_alpha_series_via_fallback()
-                info["fallback_used"] = True
-                info["fallback_details"] = fb_info
-                alpha_sum = [sum(alpha_series[h][t] for h in houses) for t in range(T)]
-                pv_by_house = {h: [alpha_series[h][t] * pv_total[t] for t in range(T)] for h in houses}
-                debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-                return pv_by_house, info, debug
-            raise ValueError(f"Missing sharing.alpha for houses: {missing}")
-
-        for h in houses:
-            if alpha_map_str[h] < 0:
-                if fb_mode != "none" and _need_fallback(f"negative scalar alpha for house {h}"):
-                    alpha_series, fb_info = _build_alpha_series_via_fallback()
-                    info["fallback_used"] = True
-                    info["fallback_details"] = fb_info
-                    alpha_sum = [sum(alpha_series[hh][t] for hh in houses) for t in range(T)]
-                    pv_by_house = {hh: [alpha_series[hh][t] * pv_total[t] for t in range(T)] for hh in houses}
-                    debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-                    return pv_by_house, info, debug
-                raise ValueError(f"Alpha for house '{h}' is negative: {alpha_map_str[h]}")
-
-        s = sum(alpha_map_str[h] for h in houses)
-        info["alpha_sum"] = float(s)
-
-        if strict_sum_to_one and abs(s - 1.0) > 1e-6:
-            if fb_mode != "none" and _need_fallback(f"strict_sum_to_one violated (sum={s})"):
-                alpha_series, fb_info = _build_alpha_series_via_fallback()
-                info["fallback_used"] = True
-                info["fallback_details"] = fb_info
-                alpha_sum = [sum(alpha_series[h][t] for h in houses) for t in range(T)]
-                pv_by_house = {h: [alpha_series[h][t] * pv_total[t] for t in range(T)] for h in houses}
-                debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-                return pv_by_house, info, debug
-            raise ValueError(f"Sum of sharing.alpha is {s} but strict_sum_to_one=true (expected 1.0).")
-
-        alpha_used_scalar = dict(alpha_map_str)
-        if normalize and abs(s - 1.0) > 1e-12:
-            alpha_used_scalar = _normalize(alpha_used_scalar)
-            info["alpha_sum_normalized"] = float(sum(alpha_used_scalar[h] for h in houses))
-        elif abs(s - 1.0) > 1e-6:
-            info["warnings"].append(f"Sum of alphas is {s:.6f} (not 1.0). PV allocations follow given weights.")
-
-        alpha_series = {h: [float(alpha_used_scalar[h])] * T for h in houses}
-        alpha_sum = [sum(alpha_series[h][t] for h in houses) for t in range(T)]
-        pv_by_house = {h: [alpha_series[h][t] * pv_total[t] for t in range(T)] for h in houses}
-
-        debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-        return pv_by_house, info, debug
-
-    if not isinstance(alpha_profile, dict):
-        raise ValueError("sharing.alpha_profile must be a dict {house: csv_path}")
-
-    alpha_profile_str = {str(k): v for k, v in alpha_profile.items()}
-    missing = [h for h in houses if h not in alpha_profile_str]
-    if missing:
-        if fb_mode != "none" and _need_fallback(f"missing alpha_profile for {missing}"):
-            alpha_series, fb_info = _build_alpha_series_via_fallback()
-            info["fallback_used"] = True
-            info["fallback_details"] = fb_info
-            alpha_sum = [sum(alpha_series[h][t] for h in houses) for t in range(T)]
-            pv_by_house = {h: [alpha_series[h][t] * pv_total[t] for t in range(T)] for h in houses}
-            debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-            return pv_by_house, info, debug
-        raise ValueError(f"Missing sharing.alpha_profile for houses: {missing}")
-
-    alpha_series_by_house: Dict[str, List[float]] = {}
-    for h in houses:
-        a_ser = load_series_csv_1col(_abs_from_root(root, alpha_profile_str[h]), T=T)
-        for t, val in enumerate(a_ser):
-            if float(val) < 0:
-                if fb_mode != "none" and _need_fallback(f"negative alpha_profile for house {h} at t={t}"):
-                    alpha_series, fb_info = _build_alpha_series_via_fallback()
-                    info["fallback_used"] = True
-                    info["fallback_details"] = fb_info
-                    alpha_sum = [sum(alpha_series[hh][tt] for hh in houses) for tt in range(T)]
-                    pv_by_house2 = {hh: [alpha_series[hh][tt] * pv_total[tt] for tt in range(T)] for hh in houses}
-                    debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-                    return pv_by_house2, info, debug
-                raise ValueError(f"Alpha_profile negative for house '{h}' at t={t}: {val}")
-        alpha_series_by_house[h] = [float(x) for x in a_ser]
-
-    pv_by_house: Dict[str, List[float]] = {h: [0.0] * T for h in houses}
-    alpha_sum_series: List[float] = []
-    alpha_used_series: Dict[str, List[float]] = {h: [0.0] * T for h in houses}
-
-    for t in range(T):
-        a_t = {h: alpha_series_by_house[h][t] for h in houses}
-        s = float(sum(a_t.values()))
-        alpha_sum_series.append(s)
-
-        if strict_sum_to_one and abs(s - 1.0) > 1e-6:
-            if fb_mode != "none" and _need_fallback(f"strict_sum_to_one violated at t={t} (sum={s})"):
-                alpha_series, fb_info = _build_alpha_series_via_fallback()
-                info["fallback_used"] = True
-                info["fallback_details"] = fb_info
-                alpha_sum = [sum(alpha_series[hh][tt] for hh in houses) for tt in range(T)]
-                pv_by_house2 = {hh: [alpha_series[hh][tt] * pv_total[tt] for tt in range(T)] for hh in houses}
-                debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
-                return pv_by_house2, info, debug
-            raise ValueError(f"At t={t}, sum(alpha_profile)={s} but strict_sum_to_one=true.")
-
-        if normalize and s > 0 and abs(s - 1.0) > 1e-12:
-            a_t = _normalize(a_t)
-
-        for h in houses:
-            alpha_used_series[h][t] = float(a_t[h])
-            pv_by_house[h][t] = float(a_t[h]) * float(pv_total[t])
-
-    info["alpha_sum_min"] = float(min(alpha_sum_series)) if alpha_sum_series else None
-    info["alpha_sum_max"] = float(max(alpha_sum_series)) if alpha_sum_series else None
-
-    if (not normalize) and alpha_sum_series:
-        if abs(info["alpha_sum_min"] - 1.0) > 1e-6 or abs(info["alpha_sum_max"] - 1.0) > 1e-6:
-            info["warnings"].append(
-                f"alpha_profile sums vary (min={info['alpha_sum_min']:.6f}, max={info['alpha_sum_max']:.6f}) and normalize=false."
+            raise ValueError(
+                "For shared PV, provide sharing.alpha or sharing.alpha_profile, "
+                "or set a fallback.mode."
             )
+        alpha_series = build_fallback_alpha()
+        return _finalize_shared(alpha_series, pv_total, houses, T, info, debug)
 
-    debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_used_series, "alpha_sum": alpha_sum_series})
-    return pv_by_house, info, debug
+    # B3 / B4: validated alpha_map or alpha_profile
+    if alpha_map is not None:
+        alpha_series = _alphas_from_scalar(
+            alpha_map, houses, T,
+            normalize=normalize, strict_sum_to_one=strict_sum_to_one,
+            info=info, fallback_or_raise=fallback_or_raise,
+        )
+        return _finalize_shared(alpha_series, pv_total, houses, T, info, debug)
+
+    alpha_series, alpha_sum_pre = _alphas_from_profile(
+        alpha_profile, houses, T, root,
+        normalize=normalize, strict_sum_to_one=strict_sum_to_one,
+        info=info, fallback_or_raise=fallback_or_raise,
+    )
+    return _finalize_shared(
+        alpha_series, pv_total, houses, T, info, debug,
+        alpha_sum=alpha_sum_pre,
+    )

@@ -1,0 +1,14 @@
+extends: _b8_base.yaml
+case: b8_pv07_consumption_instant_no_export
+
+grid:
+  allow_export: false
+
+sharing:
+  mode: fixed_alpha
+  normalize: false
+  strict_sum_to_one: false
+  fallback:
+    mode: consumption_instant
+    apply_when: always
+    zero_denom: equal_split

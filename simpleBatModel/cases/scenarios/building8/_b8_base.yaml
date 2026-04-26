@@ -1,0 +1,45 @@
+# Shared base for all building-8 PV-sharing scenarios.
+# Concrete cases extend this file via `extends: _b8_base.yaml` and only
+# need to override what differs (case name, grid.allow_export, sharing.*).
+#
+# Note: Apt1 intentionally uses load_cons_09.csv (and load_cons_01.csv is
+# unused for this building's experiments).
+
+data:
+  pv_total:
+    - data/pv_gen_01.csv
+    - data/pv_gen_02.csv
+    - data/pv_gen_03.csv
+    - data/pv_gen_04.csv
+    - data/pv_gen_05.csv
+    - data/pv_gen_06.csv
+    - data/pv_gen_07.csv
+    - data/pv_gen_08.csv
+  loads:
+    Apt1: data/load_cons_09.csv
+    Apt2: data/load_cons_02.csv
+    Apt3: data/load_cons_03.csv
+    Apt4: data/load_cons_04.csv
+    Apt5: data/load_cons_05.csv
+    Apt6: data/load_cons_06.csv
+    Apt7: data/load_cons_07.csv
+    Apt8: data/load_cons_08.csv
+
+tariffs:
+  grid_buy: 0.27
+  grid_sell: 0.06
+
+# Identical battery for all 8 apartments.
+houses:
+  Apt1: { battery: &bat
+    { E_init: 5.0, E_min: 1.0, E_max: 10.0,
+      P_ch_max: 3.3, P_dis_max: 3.3,
+      eta_ch: 0.95, eta_dis: 0.95,
+      P_grid_max: 13.8 } }
+  Apt2: { battery: *bat }
+  Apt3: { battery: *bat }
+  Apt4: { battery: *bat }
+  Apt5: { battery: *bat }
+  Apt6: { battery: *bat }
+  Apt7: { battery: *bat }
+  Apt8: { battery: *bat }

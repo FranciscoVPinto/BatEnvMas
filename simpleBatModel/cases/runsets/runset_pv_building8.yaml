@@ -1,0 +1,17 @@
+runset: pv_building8_share
+cases_base_dir: cases/scenarios/building8
+
+# All concrete scenarios in this folder. Files starting with `_` (templates
+# extended via `extends:`) are excluded by the glob pattern.
+cases_glob: "b8_*.yaml"
+
+# Default is enabled=true for every case discovered above. Add explicit
+# `false` entries here only when you want to skip something.
+enabled: {}
+
+defaults:
+  outputs_dir: results/pv_building8
+  tee: false
+  solver:
+    name: highs
+    options: {}

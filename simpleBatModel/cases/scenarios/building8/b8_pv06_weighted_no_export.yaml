@@ -1,0 +1,19 @@
+extends: _b8_base.yaml
+case: b8_pv06_weighted_no_export
+
+grid:
+  allow_export: false
+
+sharing:
+  mode: fixed_alpha
+  normalize: false
+  strict_sum_to_one: true
+  alpha:
+    Apt1: 0.25
+    Apt2: 0.15
+    Apt3: 0.10
+    Apt4: 0.10
+    Apt5: 0.10
+    Apt6: 0.10
+    Apt7: 0.10
+    Apt8: 0.10

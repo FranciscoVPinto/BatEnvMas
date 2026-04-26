@@ -1,0 +1,14 @@
+experiment: debug_one_case_realistic
+enabled: true
+case_yaml: scenarios/tariffs/flat/tph_flat_01_export_mix.yaml
+defaults:
+  outputs_dir: results
+  tee: true
+  time:
+    horizon: 672
+    dt_hours: 0.25
+    start: 2025-01-01 00:00
+  plots:
+    per_case: true
+    comparisons: false
+    include_community_per_case: true

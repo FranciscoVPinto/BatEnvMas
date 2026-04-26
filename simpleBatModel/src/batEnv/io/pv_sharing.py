@@ -136,9 +136,7 @@ def prepare_pv_by_house(
     if (not has_pv) and (not has_pv_total):
         raise ValueError("Missing PV definition: provide either data.pv or data.pv_total.")
 
-    # -----------------------
     # Mode A: per-house PV
-    # -----------------------
     if has_pv:
         pv_cfg = data_cfg.get("pv")
         info["mode"] = "per_house"
@@ -163,11 +161,16 @@ def prepare_pv_by_house(
         debug["pv_mode"] = "per_house"
         return pv_by_house, info, debug
 
-    # -----------------------
     # Mode B: shared PV_total
-    # -----------------------
     pv_total_path = data_cfg.get("pv_total")
-    pv_total = load_series_csv_1col(_abs_from_root(root, pv_total_path), T=T)
+    
+    if isinstance(pv_total_path, (list, tuple)):
+        pv_total = [0.0] * T
+        for p in pv_total_path:
+            series = load_series_csv_1col(_abs_from_root(root, p), T=T)
+            pv_total = [a + b for a, b in zip(pv_total, series)]
+    else:
+        pv_total = load_series_csv_1col(_abs_from_root(root, pv_total_path), T=T)
 
     sharing_cfg = cfg.get("sharing", {})
     if not isinstance(sharing_cfg, dict):
@@ -213,7 +216,6 @@ def prepare_pv_by_house(
             return _alphas_from_consumption_mean(loads_by_house, houses, T)
         raise ValueError(f"Unsupported fallback.mode='{fb_mode}'")
 
-    # Fallback always
     if fb_apply_when == "always":
         if fb_mode == "none":
             raise ValueError("fallback.apply_when=always requires fallback.mode != none")
@@ -241,7 +243,6 @@ def prepare_pv_by_house(
         debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
         return pv_by_house, info, debug
 
-    # --- scalar alpha
     if alpha_map is not None:
         if not isinstance(alpha_map, dict):
             raise ValueError("sharing.alpha must be a dict {house: scalar}")
@@ -300,7 +301,6 @@ def prepare_pv_by_house(
         debug.update({"pv_mode": "shared_alpha", "pv_total": pv_total, "alpha_used": alpha_series, "alpha_sum": alpha_sum})
         return pv_by_house, info, debug
 
-    # --- alpha_profile
     if not isinstance(alpha_profile, dict):
         raise ValueError("sharing.alpha_profile must be a dict {house: csv_path}")
 

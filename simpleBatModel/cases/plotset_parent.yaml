@@ -1,11 +1,7 @@
 plotset:
-  - plotsets/plotset_pv_building8.yaml
-
-# Maps child-plotset name -> enabled flag (must match the `plotset:` field
-# inside the child YAML). Default for unlisted entries is true.
+- plotsets/plotset_pv_building8.yaml
 enabled:
-  pv_building8: true
-
+  plotset_pv_building8: true
 defaults:
   outputs_dir: results
   plots:

@@ -1,15 +1,10 @@
 runset:
-  - runsets/runset_pv_building8.yaml
-
-# Maps child-runset name -> enabled flag. The name must match the `runset:`
-# field inside the child YAML (e.g. `pv_building8_share`), NOT the matching
-# plotset. Default for unlisted entries is true.
+- runsets/runset_pv_building8.yaml
 enabled:
-  pv_building8_share: true
-
+  plotset_pv_building8: true
 defaults:
   outputs_dir: results
-  tee: true
+  tee: false
   solver:
     name: highs
     options: {}

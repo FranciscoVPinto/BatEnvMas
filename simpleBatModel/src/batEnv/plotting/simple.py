@@ -48,6 +48,16 @@ def compute_summary_metrics(df: pd.DataFrame, dt_hours: float) -> Dict[str, Any]
 
     if out["E_pv_kWh"] > 0:
         out["Curt_frac_of_PV"] = float(out["E_curt_kWh"] / out["E_pv_kWh"])
+        # Self-consumption: fraction of PV energy consumed locally (not exported).
+        # SC = (E_pv - E_curt - E_exp) / E_pv. Curtailed energy was never available
+        # for consumption, so it counts against the denominator the same way.
+        sc = (out["E_pv_kWh"] - out["E_curt_kWh"] - out["E_exp_kWh"]) / out["E_pv_kWh"]
+        out["Self_Consumption"] = float(max(0.0, min(1.0, sc)))
+
+    if out["E_load_kWh"] > 0:
+        # Self-sufficiency: fraction of load covered by local PV+battery (not grid).
+        ss = (out["E_load_kWh"] - out["E_imp_kWh"]) / out["E_load_kWh"]
+        out["Self_Sufficiency"] = float(max(0.0, min(1.0, ss)))
 
     if "E" in d.columns and len(d["E"]) > 0:
         out["E_end_kWh"] = float(d["E"].iloc[-1])

@@ -33,11 +33,13 @@ from batEnv.plotting import (  # noqa: E402
     plot_compare_metrics,
     plot_compare_timeseries,
     plot_house_per_case,
+    plot_summary_dashboard,
 )
 from batEnv.utils.community_metrics import (  # noqa: E402
     COMMUNITY_ID,
     aggregate_community_timeseries,
     compute_community_extra_metrics,
+    compute_fairness_metrics,
 )
 
 
@@ -220,6 +222,9 @@ def make_comparisons(
         if not case_out_dir.exists():
             continue
         hd = case_house_dfs.get(case_name, {})
+
+        # Per-house metrics for this case
+        case_house_rows = []
         for house_id, df in hd.items():
             m = compute_summary_metrics(df, dt_hours=dt_hours)
             if house_id == COMMUNITY_ID:
@@ -227,12 +232,35 @@ def make_comparisons(
             m["case"] = case_name
             m["house"] = house_id
             metrics_rows.append(m)
+            case_house_rows.append(m)
+
+        # Fairness across the (real) houses for this case — attach to the
+        # community row so it shows up under house=_COMMUNITY in the dashboard.
+        if case_house_rows:
+            df_case = pd.DataFrame(case_house_rows)
+            fairness = compute_fairness_metrics(df_case, metric="Cost_total_EUR")
+            if fairness:
+                # find the community row in metrics_rows we just appended for this case
+                for row in metrics_rows:
+                    if row["case"] == case_name and row["house"] == COMMUNITY_ID:
+                        row.update(fairness)
+                        break
 
     if metrics_rows:
         metrics_all = pd.DataFrame(metrics_rows).set_index(["case", "house"]).sort_index()
         metrics_csv = comp_root / "metrics_all.csv"
         metrics_all.to_csv(metrics_csv)
         logger.info("Metrics table: %s", metrics_csv)
+
+        # One-page summary dashboard at community level (SS/SC/Cost/Fairness)
+        if any(metrics_all.index.get_level_values("house") == COMMUNITY_ID):
+            dash_path = comp_root / "summary_dashboard.png"
+            plot_summary_dashboard(
+                metrics_all, dash_path,
+                title=f"{plotset_name} — community summary (sorted by total cost)",
+                sort_by="Cost_total_EUR",
+            )
+            logger.info("Summary dashboard: %s", dash_path)
     else:
         metrics_all = pd.DataFrame()
         logger.warning("No metrics could be computed (no CSVs found).")

@@ -1,7 +1,7 @@
 case: b8_pv01_equal_export
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\scenarios\building8\b8_pv01_equal_export.yaml
-created_at: '2026-04-02T10:23:29.563551'
+created_at: '2026-04-26T18:41:29.836084'
 dt_hours: 0.25
 horizon: 2688
 start: 2025-01-01 00:00

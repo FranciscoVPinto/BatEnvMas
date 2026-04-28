@@ -101,6 +101,11 @@ def _per_house_pv(data_cfg: dict, houses: List[str], T: int, root: Path) -> Dict
 
 # ---------- mode B: shared PV_total ----------
 
+def load_pv_total(data_cfg: dict, root: Path, T: int) -> List[float]:
+    """Public entry point for `data.pv_total` resolution (used by alpha_mode='optimal')."""
+    return _load_pv_total(data_cfg, root, T)
+
+
 def _load_pv_total(data_cfg: dict, root: Path, T: int) -> List[float]:
     pv_total_path = data_cfg.get("pv_total")
 

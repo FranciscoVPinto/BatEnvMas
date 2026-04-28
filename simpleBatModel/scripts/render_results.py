@@ -30,10 +30,13 @@ add_src_to_path(ROOT)
 from batEnv.io import load_case_yaml, validate_plotset_cfg  # noqa: E402
 from batEnv.plotting import (  # noqa: E402
     compute_summary_metrics,
+    plot_alpha_allocation,
     plot_compare_metrics,
     plot_compare_timeseries,
     plot_house_per_case,
+    plot_scatter_cost_vs_metric,
     plot_summary_dashboard,
+    plot_sweep_curve,
 )
 from batEnv.utils.community_metrics import (  # noqa: E402
     COMMUNITY_ID,
@@ -164,6 +167,11 @@ def make_per_case_plots(
         E_min = bat.get("E_min", None)
         E_max = bat.get("E_max", None)
 
+        # Read PWL soc_breakpoints from meta (if available) for bin zone shading.
+        meta_local = _read_meta(case_out_dir)
+        pwl_meta = meta_local.get("battery_degradation_pwl") or {}
+        soc_bkpts = pwl_meta.get("soc_breakpoints", None) if isinstance(pwl_meta, dict) else None
+
         plot_house_per_case(
             df,
             out_png,
@@ -171,7 +179,17 @@ def make_per_case_plots(
             dt_hours=dt_hours,
             E_min=float(E_min) if E_min is not None else None,
             E_max=float(E_max) if E_max is not None else None,
+            pwl_soc_breakpoints=soc_bkpts,
         )
+
+    # PV allocation alpha(t) — visualises how the strategy distributed the
+    # shared PV pool across houses at each timestep.
+    plot_alpha_allocation(
+        house_dfs,
+        per_case_root / "alpha_allocation.png",
+        title=f"{case_name} | PV allocation alpha(t)",
+        dt_hours=dt_hours,
+    )
 
     logger.info("Per-case plots saved: %s", per_case_root)
 
@@ -186,6 +204,10 @@ _PREFERRED_BAR_METRICS = (
     "Cost_total_EUR", "E_imp_kWh", "E_exp_kWh", "E_ch_kWh", "E_dis_kWh",
     "E_end_kWh", "E_simul_imp_exp_kWh", "P_imp_max_kW", "P_net_grid_max_kW",
     "E_curt_kWh",
+    # Fairness metrics (computed for _COMMUNITY row, useful per-house comparison too)
+    "Cost_total_EUR_CV_house", "Cost_total_EUR_Gini_house",
+    # PWL degradation metrics (present only when battery_degradation_pwl is active)
+    "pwl_degradation_cost_EUR", "battery_throughput_kWh",
 )
 
 
@@ -223,12 +245,30 @@ def make_comparisons(
             continue
         hd = case_house_dfs.get(case_name, {})
 
+        # Load PWL scalar metrics if present (results_pwl_metrics.csv).
+        pwl_csv = case_out_dir / "results_pwl_metrics.csv"
+        pwl_by_house: dict = {}
+        if pwl_csv.exists():
+            try:
+                pwl_df = pd.read_csv(pwl_csv)
+                if "house" in pwl_df.columns:
+                    for _, row in pwl_df.iterrows():
+                        h = str(row["house"])
+                        pwl_by_house[h] = {
+                            k: v for k, v in row.items() if k != "house"
+                        }
+            except Exception:
+                pass
+
         # Per-house metrics for this case
         case_house_rows = []
         for house_id, df in hd.items():
             m = compute_summary_metrics(df, dt_hours=dt_hours)
             if house_id == COMMUNITY_ID:
                 m.update(compute_community_extra_metrics(df, dt_hours=dt_hours))
+            # Merge PWL scalars (e.g. pwl_degradation_cost_EUR, bin_hours_*)
+            if house_id in pwl_by_house:
+                m.update(pwl_by_house[house_id])
             m["case"] = case_name
             m["house"] = house_id
             metrics_rows.append(m)
@@ -261,6 +301,49 @@ def make_comparisons(
                 sort_by="Cost_total_EUR",
             )
             logger.info("Summary dashboard: %s", dash_path)
+
+            # Sweep curves (only meaningful when at least one case carries
+            # a `__<suffix>`). Always emitted; the function returns a no-op
+            # if there's nothing to compare.
+            sweep_root = comp_root / "sweep"
+            sweep_root.mkdir(parents=True, exist_ok=True)
+            for metric, hib in [
+                ("Cost_total_EUR",          False),
+                ("Self_Sufficiency_COMM",   True),
+                ("Self_Consumption_COMM",   True),
+                ("Cost_total_EUR_CV_house", False),
+            ]:
+                plot_sweep_curve(
+                    metrics_all, sweep_root / f"sweep_{metric}.png",
+                    metric=metric,
+                    title=f"{plotset_name} — sweep curve: {metric}",
+                    house=COMMUNITY_ID,
+                    higher_is_better=hib,
+                )
+            logger.info("Sweep curves: %s", sweep_root)
+
+            # Scatter plots: trade-off analysis between cost and key metrics.
+            scatter_root = comp_root / "scatter"
+            scatter_root.mkdir(parents=True, exist_ok=True)
+            _scatter_pairs = [
+                ("Cost_total_EUR", "Self_Sufficiency_COMM",
+                 "Total cost (EUR)", "Self-sufficiency (community)"),
+                ("Cost_total_EUR", "Self_Consumption_COMM",
+                 "Total cost (EUR)", "Self-consumption (community)"),
+                ("Cost_total_EUR", "Cost_total_EUR_Gini_house",
+                 "Total cost (EUR)", "Cost Gini (equity across houses)"),
+                ("Cost_total_EUR", "pwl_degradation_cost_EUR",
+                 "Total cost (EUR)", "PWL degradation cost (EUR)"),
+            ]
+            for x_m, y_m, x_lbl, y_lbl in _scatter_pairs:
+                plot_scatter_cost_vs_metric(
+                    metrics_all,
+                    scatter_root / f"scatter_{x_m}_vs_{y_m}.png",
+                    x_metric=x_m, y_metric=y_m,
+                    x_label=x_lbl, y_label=y_lbl,
+                    title=f"{plotset_name} — {y_lbl} vs {x_lbl}",
+                )
+            logger.info("Scatter plots: %s", scatter_root)
     else:
         metrics_all = pd.DataFrame()
         logger.warning("No metrics could be computed (no CSVs found).")
@@ -343,13 +426,23 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
 
     case_files = collect_case_files(ps, cases_base_dir)
 
-    # Resolve case YAMLs first (needed for auto-detecting outputs_dir)
+    # Sweep expansion (mirrors run_experiment): each base case becomes N
+    # virtual cases named "<base>__<suffix>". The case_yaml_path stays the
+    # original (used for SOC bounds / dt_hours); only the case_name and
+    # output directory change.
+    sweep_entries = ps.get("sweep") or []
+    if not sweep_entries:
+        sweep_entries = [{"suffix": ""}]
+
     resolved_cases: list[tuple[str, Path]] = []
     for case_path in case_files:
         if not case_path.exists():
             raise FileNotFoundError(f"Case YAML not found: {case_path}")
-        case_name = get_case_name(case_path)
-        resolved_cases.append((case_name, case_path))
+        base_case_name = get_case_name(case_path)
+        for sweep in sweep_entries:
+            suffix = str(sweep.get("suffix", "")).strip()
+            run_name = f"{base_case_name}__{suffix}" if suffix else base_case_name
+            resolved_cases.append((run_name, case_path))
 
     enabled_case_names = [cn for cn, _ in resolved_cases if enabled_map.get(cn, True) is not False]
     outputs_dir = _auto_pick_outputs_dir(outputs_dir, plotset_name, enabled_case_names)

@@ -1,0 +1,23 @@
+case: b8_pv09_optimal_export__with_deg
+case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+  Mec\Tese\BatEnvMas\simpleBatModel\results\alfa_deg_sweep\_sweep_tmp\b8_pv09_optimal_export__with_deg.yaml
+created_at: '2026-04-28T02:03:21.422729'
+dt_hours: 0.25
+horizon: 2688
+start: 2025-01-01 00:00
+allow_export: true
+cyclic_soc: true
+alpha_mode: optimal
+battery_degradation_eur_per_kwh: 0.033
+battery_degradation_pwl: null
+sharing_enabled: false
+model_kind: house_indexed_degradation
+warnings: []
+pv_info:
+  mode: optimal_alpha
+  pv_total_sum_kWh: 411.7021268864037
+solver_used: highs
+termination_condition: optimal
+debug:
+  write_lp: true
+  max_rows: 30

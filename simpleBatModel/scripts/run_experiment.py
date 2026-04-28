@@ -22,6 +22,8 @@ from _common import (
 
 add_src_to_path(ROOT)
 
+import yaml  # noqa: E402
+
 from batEnv.io import load_case_yaml, validate_runset_cfg  # noqa: E402  (import after path setup)
 from run_case import run_case  # noqa: E402
 
@@ -88,30 +90,63 @@ def _run_single_runset(runset: dict, *, runset_yaml_path: Path) -> None:
 
     case_files = collect_case_files(runset, base_dir)
 
+    # Sweep: each entry is run for each base case (cartesian product). When
+    # absent, behave as a single 'identity' entry — preserves legacy semantics.
+    sweep_entries = runset.get("sweep") or []
+    if not sweep_entries:
+        sweep_entries = [{"suffix": "", "overrides": {}}]
+
     logger.info("Running runset: %s", runset_name)
     logger.info("  base dir: %s", base_dir.resolve())
     logger.info("  outputs : %s", outputs_dir.resolve())
     if isinstance(time_defaults, dict) and "horizon" in time_defaults:
         logger.info("  horizon : %s", time_defaults.get("horizon"))
+    if len(sweep_entries) > 1:
+        logger.info("  sweep   : %d entries × %d base cases = %d total runs",
+                    len(sweep_entries), len(case_files), len(sweep_entries) * len(case_files))
+
+    sweep_tmp_dir = outputs_dir / "_sweep_tmp"
 
     for case_path in case_files:
         if not case_path.exists():
             raise FileNotFoundError(f"Case YAML not found: {case_path}")
 
-        case_name = _case_name_from_yaml(case_path)
-        if enabled_map.get(case_name, True) is False:
-            logger.info("Skipping case: %s (%s)", case_name, case_path.name)
+        base_case_name = _case_name_from_yaml(case_path)
+        if enabled_map.get(base_case_name, True) is False:
+            logger.info("Skipping case: %s (%s)", base_case_name, case_path.name)
             continue
 
-        logger.info("Running case: %s (%s)", case_name, case_path.name)
-        run_case(
-            str(case_path),
-            outputs_dir=str(outputs_dir),
-            tee=tee_default,
-            time_override=time_defaults,
-            solver=solver_name,
-            solver_options=solver_opts,
-        )
+        for sweep in sweep_entries:
+            suffix = str(sweep.get("suffix", "")).strip()
+            overrides = sweep.get("overrides") or {}
+
+            if not suffix and not overrides:
+                # Identity sweep — run the original case YAML directly.
+                run_path = str(case_path)
+                run_name = base_case_name
+            else:
+                # Build a fully-merged temporary YAML so run_case sees a
+                # standalone, validated configuration.
+                base_cfg = load_case_yaml(case_path)
+                merged = deep_merge(base_cfg, overrides)
+                run_name = f"{base_case_name}__{suffix}" if suffix else base_case_name
+                merged["case"] = run_name
+
+                sweep_tmp_dir.mkdir(parents=True, exist_ok=True)
+                tmp_path = sweep_tmp_dir / f"{run_name}.yaml"
+                with tmp_path.open("w", encoding="utf-8") as f:
+                    yaml.safe_dump(merged, f, sort_keys=False)
+                run_path = str(tmp_path)
+
+            logger.info("Running case: %s (%s)", run_name, Path(run_path).name)
+            run_case(
+                run_path,
+                outputs_dir=str(outputs_dir),
+                tee=tee_default,
+                time_override=time_defaults,
+                solver=solver_name,
+                solver_options=solver_opts,
+            )
 
     logger.info("All enabled cases executed.")
 

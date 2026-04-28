@@ -82,6 +82,25 @@ _CASES_GLOB_SCHEMA = {
     ],
 }
 
+# Sweep: each base case is run once per entry, with `overrides` deep-merged
+# on top of the case cfg and the run output named "<case>__<suffix>". This
+# enables fair multi-axis comparisons (e.g. same alpha set across multiple
+# degradation costs) without duplicating per-case YAMLs.
+_SWEEP_ENTRY_SCHEMA = {
+    "type": "object",
+    "required": ["suffix"],
+    "properties": {
+        "suffix": {"type": "string", "minLength": 1},
+        "overrides": {"type": "object"},
+    },
+    "additionalProperties": False,
+}
+_SWEEP_SCHEMA = {
+    "type": "array",
+    "items": _SWEEP_ENTRY_SCHEMA,
+    "minItems": 1,
+}
+
 
 # ----- runset shapes -----
 
@@ -105,6 +124,7 @@ _SINGLE_RUNSET = {
         "cases_base_dir": {"type": "string"},
         "cases": _CASES_LIST_SCHEMA,
         "cases_glob": _CASES_GLOB_SCHEMA,
+        "sweep": _SWEEP_SCHEMA,
         "enabled": _ENABLED_BOOL_MAP,
         "defaults": _DEFAULTS_RUN_SCHEMA,
         "_runset_path": {"type": "string"},
@@ -160,6 +180,7 @@ _SINGLE_PLOTSET = {
         "outputs_dir": {"type": "string"},
         "cases": _CASES_LIST_SCHEMA,
         "cases_glob": _CASES_GLOB_SCHEMA,
+        "sweep": _SWEEP_SCHEMA,
         "enabled": _ENABLED_BOOL_MAP,
         "plots": _PLOTS_SCHEMA,
         "defaults": _DEFAULTS_PLOT_SCHEMA,
@@ -180,7 +201,7 @@ _SINGLE_EXPERIMENT_PLOT = {
         "experiment": {"type": "string"},
         "case_yaml": {"type": "string"},
         "enabled": {"type": "boolean"},
-        "defaults": _DEFAULTS_RUN_SCHEMA,  # may carry plots config under defaults.plots
+        "defaults": _DEFAULTS_RUN_SCHEMA,
         "_plotset_path": {"type": "string"},
     },
     "additionalProperties": False,

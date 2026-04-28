@@ -334,3 +334,177 @@ def plot_summary_dashboard(
         fig.tight_layout()
     fig.savefig(outpath, dpi=150)
     plt.close(fig)
+
+
+# ---------- sweep curve ----------
+
+# Convention: case names produced by the sweep are "<base>__<suffix>".
+# A double underscore separates the base (alpha strategy / scenario) from
+# the sweep dimension (e.g. degradation cost, battery size).
+_SWEEP_DELIM = "__"
+
+
+def _split_sweep_name(case_name: str) -> tuple[str, str]:
+    """('b8_pv01_equal_export', 'no_deg') from 'b8_pv01_equal_export__no_deg'."""
+    if _SWEEP_DELIM in case_name:
+        base, _, suffix = case_name.partition(_SWEEP_DELIM)
+        return base, suffix
+    return case_name, ""
+
+
+def plot_sweep_curve(
+    metrics_df: pd.DataFrame,
+    outpath: str | Path,
+    *,
+    metric: str,
+    title: str = "",
+    house: str = _COMMUNITY_ID,
+    higher_is_better: Optional[bool] = None,
+) -> None:
+    """
+    For sweep results: x = base case (alpha strategy), y = `metric`, one
+    line per sweep suffix. Reads the multi-index DataFrame produced by
+    render_results (case, house) and filters to a single house (default:
+    community aggregate).
+
+    Cases without `__<suffix>` are treated as belonging to the empty-suffix
+    group (single line, behaves like a normal bar chart).
+    """
+    outpath = Path(outpath)
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+
+    if metrics_df.empty or metric not in metrics_df.columns:
+        return
+
+    try:
+        sub = metrics_df.xs(house, level="house").copy()
+    except KeyError:
+        return
+
+    # Decompose case names into (base, suffix)
+    decomposed = [_split_sweep_name(str(c)) for c in sub.index.astype(str)]
+    sub = sub.assign(_base=[b for b, _ in decomposed],
+                     _suffix=[s for _, s in decomposed])
+
+    bases = list(dict.fromkeys(sub["_base"].tolist()))      # ordered, unique
+    suffixes = list(dict.fromkeys(sub["_suffix"].tolist()))
+
+    if len(bases) < 2 and len(suffixes) < 2:
+        return  # nothing to compare
+
+    fig_w = max(10.0, 1.0 * len(bases) + 4.0)
+    fig, ax = plt.subplots(figsize=(fig_w, 6))
+
+    # X-axis ticks: short labels for the bases (strip 'b8_' prefix)
+    base_labels = [_short_case(b) for b in bases]
+    x = np.arange(len(bases))
+
+    for suf in suffixes:
+        ys: list[float] = []
+        for b in bases:
+            mask = (sub["_base"] == b) & (sub["_suffix"] == suf)
+            row = sub[mask]
+            if row.empty:
+                ys.append(float("nan"))
+            else:
+                ys.append(float(pd.to_numeric(row[metric], errors="coerce").iloc[0]))
+        label = suf if suf else "(base)"
+        ax.plot(x, ys, marker="o", linewidth=2.0, label=label)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(base_labels, rotation=30, ha="right", fontsize=9)
+    ax.set_ylabel(metric)
+    ax.set_xlabel("base case (alpha strategy)")
+    ax.set_title(title or f"Sweep: {metric} across alpha × variants ({house})")
+    ax.grid(True, alpha=0.3)
+    ax.legend(title="sweep")
+
+    # Annotation: best/worst across the whole grid (if direction known)
+    if higher_is_better is not None:
+        all_y = pd.to_numeric(sub[metric], errors="coerce").to_numpy()
+        if all_y.size > 0 and not np.all(np.isnan(all_y)):
+            best_v = float(np.nanmax(all_y) if higher_is_better else np.nanmin(all_y))
+            worst_v = float(np.nanmin(all_y) if higher_is_better else np.nanmax(all_y))
+            ax.axhline(best_v, color="#2ca02c", linestyle=":", alpha=0.6, label=f"best={best_v:.3g}")
+            ax.axhline(worst_v, color="#d62728", linestyle=":", alpha=0.6, label=f"worst={worst_v:.3g}")
+            ax.legend(title="sweep")
+
+    fig.tight_layout()
+    fig.savefig(outpath, dpi=150)
+    plt.close(fig)
+
+
+# ---------- scatter: cost vs. a community metric ----------
+
+def plot_scatter_cost_vs_metric(
+    metrics_df: pd.DataFrame,
+    outpath: str | Path,
+    *,
+    x_metric: str = "Cost_total_EUR",
+    y_metric: str = "Self_Sufficiency_COMM",
+    house: str = _COMMUNITY_ID,
+    title: str = "",
+    annotate: bool = True,
+    x_label: Optional[str] = None,
+    y_label: Optional[str] = None,
+) -> None:
+    """
+    Scatter plot of *x_metric* vs. *y_metric* — one point per case.
+
+    Designed for trade-off analysis (e.g. cost vs. self-sufficiency, cost vs.
+    Gini coefficient). Cases are filtered to a single ``house`` level (default:
+    community aggregate ``_COMMUNITY``).
+
+    Parameters
+    ----------
+    annotate :
+        When True, each point is labelled with a short version of the case name.
+    """
+    outpath = Path(outpath)
+    outpath.parent.mkdir(parents=True, exist_ok=True)
+
+    if metrics_df.empty:
+        return
+
+    try:
+        sub = metrics_df.xs(house, level="house").copy()
+    except KeyError:
+        # Fallback: try without multi-index
+        if "house" in metrics_df.columns:
+            sub = metrics_df[metrics_df["house"] == house].copy()
+        else:
+            return
+
+    missing = [m for m in (x_metric, y_metric) if m not in sub.columns]
+    if missing:
+        return  # silently skip if metrics not available
+
+    x = pd.to_numeric(sub[x_metric], errors="coerce").to_numpy()
+    y = pd.to_numeric(sub[y_metric], errors="coerce").to_numpy()
+    labels = [_short_case(str(c)) for c in sub.index.astype(str)]
+
+    valid = ~(np.isnan(x) | np.isnan(y))
+    if valid.sum() < 2:
+        return
+
+    fig, ax = plt.subplots(figsize=(9, 6))
+    ax.scatter(x[valid], y[valid], s=80, zorder=3)
+
+    if annotate:
+        for xi, yi, lbl in zip(x[valid], y[valid], np.array(labels)[valid]):
+            ax.annotate(
+                lbl,
+                (xi, yi),
+                textcoords="offset points",
+                xytext=(6, 4),
+                fontsize=8,
+                clip_on=True,
+            )
+
+    ax.set_xlabel(x_label or x_metric)
+    ax.set_ylabel(y_label or y_metric)
+    ax.set_title(title or f"{y_metric} vs {x_metric}")
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(outpath, dpi=150)
+    plt.close(fig)

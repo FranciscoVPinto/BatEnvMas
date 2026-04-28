@@ -62,3 +62,40 @@ def model_to_dataframe(m, house_id: str | None = None) -> pd.DataFrame:
     if chosen not in [str(h) for h in houses]:
         raise KeyError(f"House '{chosen}' not found in model.")
     return _extract_house_dataframe(m, chosen)
+
+
+def extract_pwl_metrics_dataframe(m) -> "pd.DataFrame":
+    """
+    Extract per-house scalar metrics from a solved PWL degradation model.
+
+    Returns a DataFrame with columns:
+        house, pwl_degradation_cost_EUR, battery_throughput_kWh,
+        bin_hours_0, bin_hours_1, ..., bin_hours_{K-1}
+
+    Returns an empty DataFrame if the model has no PWL attributes.
+    """
+    import pandas as pd  # local import to avoid circular dependency
+
+    if not (hasattr(m, "K") and hasattr(m, "pwl_degradation_cost_EUR")):
+        return pd.DataFrame()
+
+    K = list(m.K)
+    rows = []
+    for h in list(m.H):
+        row: dict = {"house": str(h)}
+        try:
+            row["pwl_degradation_cost_EUR"] = _val(m.pwl_degradation_cost_EUR[h])
+        except (KeyError, AttributeError):
+            row["pwl_degradation_cost_EUR"] = 0.0
+        try:
+            row["battery_throughput_kWh"] = _val(m.battery_throughput_kWh[h])
+        except (KeyError, AttributeError):
+            row["battery_throughput_kWh"] = 0.0
+        for k in K:
+            try:
+                row[f"bin_hours_{k}"] = _val(m.bin_hours[h, k])
+            except (KeyError, AttributeError):
+                row[f"bin_hours_{k}"] = 0.0
+        rows.append(row)
+
+    return pd.DataFrame(rows)

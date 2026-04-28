@@ -1,11 +1,15 @@
 case: b8_pv02_weighted_export
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\cases\scenarios\building8\b8_pv02_weighted_export.yaml
-created_at: '2026-04-26T18:47:58.625462'
+created_at: '2026-04-27T22:45:06.455540'
 dt_hours: 0.25
 horizon: 2688
 start: 2025-01-01 00:00
 allow_export: true
+cyclic_soc: true
+alpha_mode: fixed
+battery_degradation_eur_per_kwh: 0.0
+battery_degradation_pwl: null
 sharing_enabled: false
 model_kind: house_indexed_unified
 warnings: []

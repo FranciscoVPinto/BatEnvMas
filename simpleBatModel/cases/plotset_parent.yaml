@@ -1,10 +1,12 @@
 plotset:
   - plotsets/plotset_pv_building8.yaml
+  - plotsets/plotset_alfa_deg_sweep.yaml
 
 # Maps child-plotset name -> enabled flag (must match the `plotset:` field
 # inside the child YAML). Default for unlisted entries is true.
 enabled:
   pv_building8: true
+  alfa_deg_sweep: true
 
 defaults:
   outputs_dir: results

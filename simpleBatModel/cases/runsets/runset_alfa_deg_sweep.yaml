@@ -1,0 +1,38 @@
+runset: alfa_deg_sweep
+cases_base_dir: cases/scenarios/building8
+
+# 5 base cases — 4 heuristics + theoretical optimum, all with allow_export=true
+# so the comparison is symmetric across the alpha dimension. The non-export
+# variants (pv05..08), the no-battery (pv10), and no-sharing (pv11..12) baselines
+# are excluded here on purpose: keep the matrix in 2 dimensions only
+# (alpha × battery_degradation) for clean reading.
+cases:
+  - b8_pv01_equal_export.yaml
+  - b8_pv02_weighted_export.yaml
+  - b8_pv03_consumption_instant_export.yaml
+  - b8_pv04_consumption_mean_export.yaml
+  - b8_pv09_optimal_export.yaml
+
+# Sweep: each base case is run twice — once with no degradation cost, once
+# with lambda_deg = 0.033 EUR/kWh (typical 10 kWh / 6000-cycle battery).
+# Output cases are named "<base>__no_deg" and "<base>__with_deg".
+sweep:
+  - suffix: no_deg
+    overrides:
+      model:
+        cyclic_soc: true
+        battery_degradation_eur_per_kwh: 0.0
+  - suffix: with_deg
+    overrides:
+      model:
+        cyclic_soc: true
+        battery_degradation_eur_per_kwh: 0.033
+
+enabled: {}
+
+defaults:
+  outputs_dir: results/alfa_deg_sweep
+  tee: false
+  solver:
+    name: highs
+    options: {}

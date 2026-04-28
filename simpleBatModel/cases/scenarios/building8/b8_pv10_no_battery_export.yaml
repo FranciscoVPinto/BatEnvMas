@@ -1,0 +1,29 @@
+extends: _b8_base.yaml
+case: b8_pv10_no_battery_export
+
+# Baseline 'how much is the battery worth?'. Same allocation logic as
+# pv04 (consumption_mean) but with battery capacities zeroed.
+grid:
+  allow_export: true
+
+sharing:
+  mode: fixed_alpha
+  normalize: false
+  strict_sum_to_one: false
+  fallback:
+    mode: consumption_mean
+    apply_when: always
+
+houses:
+  Apt1: { battery: &nobat
+    { E_init: 0, E_min: 0, E_max: 0,
+      P_ch_max: 0, P_dis_max: 0,
+      eta_ch: 0.95, eta_dis: 0.95,
+      P_grid_max: 13.8 } }
+  Apt2: { battery: *nobat }
+  Apt3: { battery: *nobat }
+  Apt4: { battery: *nobat }
+  Apt5: { battery: *nobat }
+  Apt6: { battery: *nobat }
+  Apt7: { battery: *nobat }
+  Apt8: { battery: *nobat }

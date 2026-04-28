@@ -1,0 +1,27 @@
+extends: _b8_base.yaml
+case: b8_pv14_weighted_with_degradation_export
+
+# Like pv02 (weighted alpha) but with battery degradation cost. Comparing
+# pv14 vs pv02 isolates the effect of the degradation term on a fixed
+# allocation. The ranking against pv13 (optimal+deg) shows whether the
+# heuristic is competitive once batteries are not free.
+grid:
+  allow_export: true
+
+sharing:
+  mode: fixed_alpha
+  normalize: false
+  strict_sum_to_one: true
+  alpha:
+    Apt1: 0.25
+    Apt2: 0.15
+    Apt3: 0.10
+    Apt4: 0.10
+    Apt5: 0.10
+    Apt6: 0.10
+    Apt7: 0.10
+    Apt8: 0.10
+
+model:
+  cyclic_soc: true
+  battery_degradation_eur_per_kwh: 0.033

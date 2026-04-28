@@ -1,0 +1,20 @@
+extends: _b8_base.yaml
+case: b8_pv13_optimal_with_degradation_export
+
+# Like pv09 (theoretical optimum with endogenous alpha) but the objective
+# now penalises battery throughput. The optimiser will only cycle when the
+# operational saving exceeds the wear cost. Comparing pv13 vs pv09 reveals
+# how much of pv09's gain came from 'free' cycling.
+#
+# lambda_deg = 0.033 EUR/kWh derives from:
+#   C_battery = 4000 EUR for a 10 kWh pack with 6000 cycles
+#   lambda_deg = 4000 / (6000 * 2 * 10) = 0.0333...
+grid:
+  allow_export: true
+
+sharing:
+  mode: optimal
+
+model:
+  cyclic_soc: true
+  battery_degradation_eur_per_kwh: 0.033

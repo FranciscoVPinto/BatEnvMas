@@ -15,8 +15,6 @@ The schema catches the common typos and shape mistakes:
 from __future__ import annotations
 
 
-# Spec for one battery's parameters.
-# additionalProperties: false catches typos like 'eta_chr' or 'P_dis_mx'.
 _BATTERY_SCHEMA = {
     "type": "object",
     "properties": {
@@ -41,7 +39,6 @@ _PER_HOUSE_SCHEMA = {
     "additionalProperties": True,
 }
 
-# Tariff specs are very polymorphic (scalar/list/dict). We accept any of them.
 _TARIFF_SPEC_SCHEMA = {
     "anyOf": [
         {"type": "number"},
@@ -50,7 +47,6 @@ _TARIFF_SPEC_SCHEMA = {
     ],
 }
 
-# Sharing fallback. Strict because all valid keys are known and enumerable.
 _FALLBACK_SCHEMA = {
     "type": "object",
     "properties": {
@@ -61,22 +57,49 @@ _FALLBACK_SCHEMA = {
     "additionalProperties": False,
 }
 
+# Schema for battery_degradation_pwl (MultiHouseModelDegradationPWL).
+# soc_breakpoints: K+1 fractions in [0,1], strictly increasing (0.0 to 1.0).
+# lambda_by_bin:   K degradation costs in EUR/kWh, one per SoC bin.
+# lambda_by_bin_per_house: optional per-house override.
+_BATTERY_DEGRADATION_PWL_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "soc_breakpoints": {
+            "type": "array",
+            "items": {"type": "number", "minimum": 0, "maximum": 1},
+            "minItems": 2,
+        },
+        "lambda_by_bin": {
+            "type": "array",
+            "items": {"type": "number", "minimum": 0},
+            "minItems": 1,
+        },
+        "lambda_by_bin_per_house": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "array",
+                "items": {"type": "number", "minimum": 0},
+                "minItems": 1,
+            },
+        },
+    },
+    "required": ["soc_breakpoints", "lambda_by_bin"],
+    "additionalProperties": False,
+}
+
 CASE_SCHEMA = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "title": "BatEnv case YAML",
     "type": "object",
     "required": ["case", "data", "houses"],
-
     "properties": {
         "case": {"type": "string", "minLength": 1},
-
-        "extends": {  # consumed by load_case_yaml; harmless to allow here too
+        "extends": {
             "anyOf": [
                 {"type": "string"},
                 {"type": "array", "items": {"type": "string"}},
             ],
         },
-
         "time": {
             "type": "object",
             "properties": {
@@ -86,7 +109,6 @@ CASE_SCHEMA = {
             },
             "additionalProperties": False,
         },
-
         "data": {
             "type": "object",
             "required": ["loads"],
@@ -99,10 +121,7 @@ CASE_SCHEMA = {
                 "pv": {
                     "anyOf": [
                         {"type": "string"},
-                        {
-                            "type": "object",
-                            "additionalProperties": {"type": "string"},
-                        },
+                        {"type": "object", "additionalProperties": {"type": "string"}},
                     ],
                 },
                 "pv_total": {
@@ -112,14 +131,12 @@ CASE_SCHEMA = {
                     ],
                 },
             },
-            # Exactly one of pv / pv_total must be set
             "oneOf": [
                 {"required": ["pv"], "not": {"required": ["pv_total"]}},
                 {"required": ["pv_total"], "not": {"required": ["pv"]}},
             ],
             "additionalProperties": True,
         },
-
         "tariffs": {
             "type": "object",
             "properties": {
@@ -129,19 +146,15 @@ CASE_SCHEMA = {
             },
             "additionalProperties": True,
         },
-
         "grid": {
             "type": "object",
-            "properties": {
-                "allow_export": {"type": "boolean"},
-            },
+            "properties": {"allow_export": {"type": "boolean"}},
             "additionalProperties": False,
         },
-
         "sharing": {
             "type": "object",
             "properties": {
-                "mode": {"type": "string"},
+                "mode": {"enum": ["fixed_alpha", "optimal"]},
                 "normalize": {"type": "boolean"},
                 "strict_sum_to_one": {"type": "boolean"},
                 "alpha": {
@@ -156,15 +169,22 @@ CASE_SCHEMA = {
             },
             "additionalProperties": True,
         },
-
+        # battery_degradation_pwl takes precedence over battery_degradation_eur_per_kwh.
+        "model": {
+            "type": "object",
+            "properties": {
+                "cyclic_soc": {"type": "boolean"},
+                "battery_degradation_eur_per_kwh": {"type": "number", "minimum": 0},
+                "battery_degradation_pwl": _BATTERY_DEGRADATION_PWL_SCHEMA,
+            },
+            "additionalProperties": False,
+        },
         "houses": {
             "type": "object",
             "minProperties": 1,
             "additionalProperties": _PER_HOUSE_SCHEMA,
         },
-
         "debug": {"type": "object"},
     },
-
     "additionalProperties": True,
 }

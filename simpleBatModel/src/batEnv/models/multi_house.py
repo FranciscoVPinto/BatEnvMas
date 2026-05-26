@@ -70,7 +70,7 @@ class MultiHouseModel:
         houses = [str(h) for h in houses]
         T = len(next(iter(loads_by_house.values())))
 
-        # ---------- input validation depending on alpha_mode ----------
+        # input validation
         if alpha_mode == "fixed":
             if pv_by_house is None:
                 raise ValueError("alpha_mode='fixed' requires pv_by_house")
@@ -90,7 +90,6 @@ class MultiHouseModel:
                 if len(loads_by_house[h]) != T:
                     raise ValueError(f"House '{h}' load series must have length T={T}")
 
-        # ---------- tariff handling ----------
         if isinstance(c_grid, Mapping):
             c_grid_by_house = {h: list(c_grid[h]) for h in houses}
         else:
@@ -105,7 +104,6 @@ class MultiHouseModel:
             if len(c_grid_by_house[h]) != T or len(c_sell_by_house[h]) != T:
                 raise ValueError(f"Tariff series for house '{h}' must have length T={T}")
 
-        # ---------- model construction ----------
         m = pyo.ConcreteModel()
         m.H = pyo.Set(initialize=houses, ordered=True)
         m.T = pyo.RangeSet(1, T)
@@ -136,7 +134,6 @@ class MultiHouseModel:
                              initialize=_to_2d_1_indexed_dict(c_sell_by_house, houses, T),
                              within=pyo.NonNegativeReals)
 
-        # ---------- PV: Param vs Var depending on alpha_mode ----------
         m.alpha_mode = pyo.Param(initialize=alpha_mode, within=pyo.Any)
         if alpha_mode == "fixed":
             m.PV = pyo.Param(m.H, m.T,
@@ -156,7 +153,6 @@ class MultiHouseModel:
                 rule=lambda mm, h, t: mm.PV[h, t] <= mm.PV_total[t],
             )
 
-        # ---------- decision variables ----------
         m.P_ch = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
         m.P_dis = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
         m.P_imp = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
@@ -167,7 +163,6 @@ class MultiHouseModel:
         m.x = pyo.Var(m.H, m.T, within=pyo.Binary)  # 1 = charging
         m.y = pyo.Var(m.H, m.T, within=pyo.Binary)  # 1 = importing
 
-        # ---------- constraints ----------
         def energy_dyn_rule(mm, h, t):
             return mm.E[h, t] == mm.E[h, t - 1] + (
                 mm.eta_ch[h] * mm.P_ch[h, t] - (1.0 / mm.eta_dis[h]) * mm.P_dis[h, t]

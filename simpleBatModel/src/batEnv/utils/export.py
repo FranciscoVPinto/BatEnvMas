@@ -14,10 +14,17 @@ _PYOMO_VAL_ERRORS = (ValueError, AttributeError, KeyError)
 
 def _val(x) -> float:
     """Best-effort extraction of a Pyomo value; returns 0.0 if unavailable."""
+    import logging
+    _pyomo_log = logging.getLogger("pyomo.core")
+    _old_level = _pyomo_log.level
+    _pyomo_log.setLevel(logging.CRITICAL)
     try:
-        return float(pyo.value(x))
+        v = pyo.value(x, exception=False)
+        return float(v) if v is not None else 0.0
     except _PYOMO_VAL_ERRORS:
         return 0.0
+    finally:
+        _pyomo_log.setLevel(_old_level)
 
 
 def _extract_house_dataframe(m, house_id: str) -> pd.DataFrame:

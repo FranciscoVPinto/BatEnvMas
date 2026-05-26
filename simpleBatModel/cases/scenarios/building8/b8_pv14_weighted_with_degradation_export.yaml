@@ -1,10 +1,6 @@
 extends: _b8_base.yaml
 case: b8_pv14_weighted_with_degradation_export
 
-# Like pv02 (weighted alpha) but with battery degradation cost. Comparing
-# pv14 vs pv02 isolates the effect of the degradation term on a fixed
-# allocation. The ranking against pv13 (optimal+deg) shows whether the
-# heuristic is competitive once batteries are not free.
 grid:
   allow_export: true
 

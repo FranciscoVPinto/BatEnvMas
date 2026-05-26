@@ -1,7 +1,7 @@
 case: b8_pv03_consumption_instant_export__no_deg
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\results\alfa_deg_sweep\_sweep_tmp\b8_pv03_consumption_instant_export__no_deg.yaml
-created_at: '2026-04-28T00:40:40.042284'
+created_at: '2026-05-07T22:19:07.448910'
 dt_hours: 0.25
 horizon: 2688
 start: 2025-01-01 00:00

@@ -1,7 +1,5 @@
 case: b8_pv12_nothing_export
 
-# Hardest baseline: each house alone, no battery, no sharing. Difference
-# vs pv01..pv09 quantifies the *combined* value of the CER setup.
 data:
   pv:
     Apt1: data/pv_gen_01.csv

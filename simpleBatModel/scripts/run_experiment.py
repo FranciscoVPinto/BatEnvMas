@@ -55,9 +55,8 @@ def _is_parent_runset(cfg: dict) -> bool:
     return isinstance(cfg.get("runset", None), list)
 
 
-# ---------- single runset ----------
 
-def _run_single_runset(runset: dict, *, runset_yaml_path: Path) -> None:
+def _run_single_runset(runset: dict, *, runset_yaml_path: Path, skip_existing: bool = False) -> None:
     runset_name = str(runset.get("runset", runset_yaml_path.stem))
 
     base_dir = Path(runset.get("cases_base_dir", "cases"))
@@ -119,8 +118,18 @@ def _run_single_runset(runset: dict, *, runset_yaml_path: Path) -> None:
         for sweep in sweep_entries:
             suffix = str(sweep.get("suffix", "")).strip()
             overrides = sweep.get("overrides") or {}
+            sweep_time = sweep.get("time_override") or {}
+            sweep_subdir = sweep.get("outputs_subdir")
 
-            if not suffix and not overrides:
+            # Effective time override: runset defaults overlaid with sweep entry.
+            effective_time = dict(time_defaults or {})
+            effective_time.update(sweep_time)
+            effective_time_override = effective_time or None
+
+            # Per-entry outputs_dir (nested layout when sweep specifies subdir).
+            run_outputs_dir = outputs_dir / sweep_subdir if sweep_subdir else outputs_dir
+
+            if not suffix and not overrides and not sweep_time and not sweep_subdir:
                 # Identity sweep — run the original case YAML directly.
                 run_path = str(case_path)
                 run_name = base_case_name
@@ -138,22 +147,30 @@ def _run_single_runset(runset: dict, *, runset_yaml_path: Path) -> None:
                     yaml.safe_dump(merged, f, sort_keys=False)
                 run_path = str(tmp_path)
 
-            logger.info("Running case: %s (%s)", run_name, Path(run_path).name)
-            run_case(
-                run_path,
-                outputs_dir=str(outputs_dir),
-                tee=tee_default,
-                time_override=time_defaults,
-                solver=solver_name,
-                solver_options=solver_opts,
-            )
+            if skip_existing and (run_outputs_dir / run_name / "meta.yaml").exists():
+                logger.info("Skipping (already done): %s", run_name)
+                continue
+
+            logger.info("Running case: %s (%s)%s",
+                        run_name, Path(run_path).name,
+                        f" -> {sweep_subdir}/" if sweep_subdir else "")
+            try:
+                run_case(
+                    run_path,
+                    outputs_dir=str(run_outputs_dir),
+                    tee=tee_default,
+                    time_override=effective_time_override,
+                    solver=solver_name,
+                    solver_options=solver_opts,
+                )
+            except Exception as case_err:  # noqa: BLE001
+                logger.error("Case %s FAILED — skipping. Reason: %s", run_name, case_err)
 
     logger.info("All enabled cases executed.")
 
 
-# ---------- parent runset (list of child runsets) ----------
 
-def _run_parent_runset(parent: dict, *, parent_yaml_path: Path) -> None:
+def _run_parent_runset(parent: dict, *, parent_yaml_path: Path, skip_existing: bool = False) -> None:
     """
     Parent runset YAML example:
 
@@ -189,10 +206,9 @@ def _run_parent_runset(parent: dict, *, parent_yaml_path: Path) -> None:
         child_defaults = rs.get("defaults", {}) if isinstance(rs.get("defaults", {}), dict) else {}
         rs["defaults"] = deep_merge(parent_defaults, child_defaults)
 
-        _run_single_runset(rs, runset_yaml_path=runset_yaml_path)
+        _run_single_runset(rs, runset_yaml_path=runset_yaml_path, skip_existing=skip_existing)
 
 
-# ---------- single experiment ----------
 
 def _run_single_experiment(exp: dict, *, exp_yaml_path: Path) -> None:
     """
@@ -251,9 +267,8 @@ def _run_single_experiment(exp: dict, *, exp_yaml_path: Path) -> None:
     logger.info("Single experiment executed.")
 
 
-# ---------- entry point ----------
 
-def run_all(runset_yaml: str | Path) -> None:
+def run_all(runset_yaml: str | Path, *, skip_existing: bool = False) -> None:
     runset_yaml_path = resolve_from(ROOT, runset_yaml, root=ROOT)
     cfg = load_runset(runset_yaml_path)
 
@@ -262,14 +277,16 @@ def run_all(runset_yaml: str | Path) -> None:
         return
 
     if _is_parent_runset(cfg):
-        _run_parent_runset(cfg, parent_yaml_path=runset_yaml_path)
+        _run_parent_runset(cfg, parent_yaml_path=runset_yaml_path, skip_existing=skip_existing)
     else:
-        _run_single_runset(cfg, runset_yaml_path=runset_yaml_path)
+        _run_single_runset(cfg, runset_yaml_path=runset_yaml_path, skip_existing=skip_existing)
 
 
 def _parse_args() -> argparse.Namespace:
     ap = argparse.ArgumentParser(description="Run a runset (or parent runset).")
     ap.add_argument("--runset", default=str(ROOT / "cases" / "runset_parent.yaml"), help="Path to runset YAML")
+    ap.add_argument("--skip-existing", action="store_true", default=True, help="Skip cases whose output meta.yaml already exists")
+    ap.add_argument("--no-skip-existing", dest="skip_existing", action="store_false", help="Re-run all cases even if output already exists")
     ap.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging")
     return ap.parse_args()
 
@@ -277,4 +294,4 @@ def _parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = _parse_args()
     setup_logging(verbose=args.verbose)
-    run_all(args.runset)
+    run_all(args.runset, skip_existing=args.skip_existing)

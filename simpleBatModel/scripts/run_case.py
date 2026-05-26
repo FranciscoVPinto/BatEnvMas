@@ -46,12 +46,36 @@ def _abs_from_root(p):
     return p if p.is_absolute() else (ROOT / p).resolve()
 
 
+NATIVE_DT_HOURS = 0.25  # all input CSVs are recorded at 15-min (0.25 h) resolution
+
+
 def _pad_or_trunc(arr, T):
     if len(arr) >= T:
         return arr[:T]
     if not arr:
         return [0.0] * T
     return arr + [arr[-1]] * (T - len(arr))
+
+
+def _resample_series(series: list, factor: int) -> list:
+    """
+    Down-sample a time series by averaging groups of `factor` consecutive values.
+
+    Suitable for power (kW) or price (EUR/kWh) series: averaging preserves the
+    correct kWh total when combined with the new (larger) dt.
+
+    Examples
+    --------
+    factor=4 : 15-min → 1-hour  (dt goes 0.25 → 1.0)
+    factor=2 : 15-min → 30-min
+    """
+    if factor <= 1:
+        return list(series)
+    n_full = (len(series) // factor) * factor
+    return [
+        sum(series[i: i + factor]) / factor
+        for i in range(0, n_full, factor)
+    ]
 
 
 def _apply_time_override(cfg, time_override):
@@ -156,7 +180,8 @@ def _solve_model_safe(model, *, solver, options, tee):
                 continue
             if options and hasattr(opt, "options"):
                 for k, v in options.items():
-                    opt.options[k] = v
+                    # HiGHS expects doubles for numeric options; coerce int → float.
+                    opt.options[k] = float(v) if isinstance(v, int) else v
             if tee and s in ("appsi_highs", "highs"):
                 _configure_highs_logging(opt)
             auto_load = True
@@ -175,8 +200,14 @@ def _solve_model_safe(model, *, solver, options, tee):
             tc = getattr(results.solver, "termination_condition", None)
             if tee:
                 logger.info("Solve finished (termination=%s)", tc)
-            if not auto_load and tc in (pyo.TerminationCondition.optimal, pyo.TerminationCondition.feasible):
-                model.solutions.load_from(results)
+            _ACCEPTABLE = (pyo.TerminationCondition.optimal,
+                           pyo.TerminationCondition.feasible,
+                           pyo.TerminationCondition.maxTimeLimit)
+            if not auto_load and tc in _ACCEPTABLE:
+                try:
+                    model.solutions.load_from(results)
+                except Exception as load_err:
+                    logger.warning("Could not load solution (tc=%s): %s", tc, load_err)
             return results, s
         except Exception as e:  # noqa: BLE001
             logger.debug("Solver %s failed: %s", s, e)
@@ -276,6 +307,201 @@ def _handle_infeasible(*, case_out_dir, case_name, debug_cfg, loads_by_house,
     return err
 
 
+def _tariff_for_house(tariff, h):
+    """Extract the tariff series for a single house (handles flat or per-house mapping)."""
+    if isinstance(tariff, dict):
+        return list(tariff[h])
+    return list(tariff)
+
+
+def _solve_pwl_per_house(
+    *, houses, loads_by_house, bat_params_by_house, c_grid, c_sell,
+    pv_by_house, dt_hours, allow_export, cyclic_soc, pwl_cfg_dict,
+    solver, solver_options, tee, case_name,
+):
+    """
+    Two-stage linear decomposition for PWL degradation — one sub-problem per house.
+
+    The original MILP PWL formulation adds K binary variables per timestep for bin
+    assignment (big-M constraints) on top of the 2 binaries already in the base
+    model (charge/discharge mutex, import/export mutex).  The big-M LP relaxation
+    is very weak, making branch-and-bound essentially intractable for long horizons.
+
+    This two-stage approach eliminates the bin-assignment binaries entirely:
+
+    Stage 1 — Base MILP (2*T binaries per house, tight LP relaxation):
+        Solve the standard MultiHouseModel with no degradation cost.
+        Extract the SoC trajectory E[h, 0..T].
+
+    Stage 2 — Augmented MILP (same 2*T binaries, linear degradation term):
+        Map E[t-1] → active bin k_t → time-varying lambda_t.
+        Re-solve the base model with the additional linear penalty
+            sum_t  lambda_t * (P_ch[h,t] + P_dis[h,t]) * dt
+        added to the objective.  No new binary variables are introduced.
+
+    The LP relaxation of the base model's no-simultaneous-charge/discharge
+    constraints is much tighter than big-M (bounds are physical, not artificial),
+    so B&B closes to optimality in a fraction of the time.
+
+    Returns
+    -------
+    house_dfs     : dict[house_id -> pd.DataFrame]
+    pwl_metrics   : pd.DataFrame  (all houses concatenated)
+    terminations  : dict[house_id -> str]
+    solver_used   : str  (from last house solve)
+    """
+    from batEnv.utils.export import _extract_house_dataframe
+    from batEnv.models.multi_house_degradation_pwl import (
+        _DEFAULT_LAMBDA_BY_BIN, _DEFAULT_SOC_BREAKPOINTS,
+    )
+    import pandas as pd
+
+    soc_bkpts = [float(v) for v in pwl_cfg_dict.get("soc_breakpoints", _DEFAULT_SOC_BREAKPOINTS)]
+    lam_bins = [float(v) for v in pwl_cfg_dict.get("lambda_by_bin", _DEFAULT_LAMBDA_BY_BIN)]
+    K = len(lam_bins)
+    lam_per_house_raw = pwl_cfg_dict.get("lambda_by_bin_per_house", None)
+    lam_per_house = (
+        {str(h): [float(v) for v in vals] for h, vals in lam_per_house_raw.items()}
+        if isinstance(lam_per_house_raw, dict) else None
+    )
+
+    _ACCEPTABLE = (pyo.TerminationCondition.optimal,
+                   pyo.TerminationCondition.feasible,
+                   pyo.TerminationCondition.maxTimeLimit)
+
+    house_dfs: dict = {}
+    pwl_rows: list = []
+    terminations: dict = {}
+    last_solver = solver
+
+    for h in houses:
+        # Per-house lambda vector (global default or per-house override)
+        lam_h = lam_per_house[str(h)] if (lam_per_house and str(h) in lam_per_house) else lam_bins
+
+        # Battery parameters for bin energy boundaries
+        bp = bat_params_by_house.get(h) or {}
+        e_min_h = float(bp.get("E_min", 0.0))
+        e_max_h = float(bp.get("E_max", 0.0))
+        e_init_h = float(bp.get("E_init", 0.0))
+        span = max(e_max_h - e_min_h, 1e-9)  # avoid division by zero
+
+        # Energy boundaries for each SoC bin (K bins, K+1 breakpoints)
+        e_hi = [e_min_h + soc_bkpts[k + 1] * span for k in range(K)]
+
+        T_h = len(loads_by_house[h])
+
+        # ── Stage 1: base MILP (no degradation) ──────────────────────────────
+        logger.info("  [PWL 2-stage] house %s — stage 1 (base MILP, %d timesteps)...", h, T_h)
+        base_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
+        base_m = base_mh.make_instance(
+            houses=[h],
+            loads_by_house={h: loads_by_house[h]},
+            bat_params_by_house={h: bp},
+            c_grid={h: _tariff_for_house(c_grid, h)},
+            c_sell={h: _tariff_for_house(c_sell, h)},
+            pv_by_house={h: pv_by_house[h]},
+            alpha_mode="fixed",
+        )
+        results_1, last_solver = _solve_model_safe(
+            base_m, solver=solver, options=solver_options, tee=tee)
+        tc_1 = getattr(results_1.solver, "termination_condition", None)
+        if tc_1 not in _ACCEPTABLE:
+            raise RuntimeError(f"Case '{case_name}', house '{h}': stage-1 returned {tc_1}")
+        if tc_1 == pyo.TerminationCondition.maxTimeLimit:
+            _test = next(iter(base_m.P_imp.values()), None)
+            if _test is None or _test.value is None:
+                raise RuntimeError(
+                    f"Case '{case_name}', house '{h}': stage-1 hit time limit with no feasible solution.")
+            logger.warning("  [PWL 2-stage] house %s stage-1 hit time limit — using best solution.", h)
+        logger.info("  [PWL 2-stage] house %s stage-1 done (tc=%s, solver=%s).", h, tc_1, last_solver)
+
+        # Extract SoC trajectory; clip to physical bounds for robustness
+        E_traj = [e_init_h] + [
+            max(e_min_h, min(e_max_h, pyo.value(base_m.E[h, t]) or e_init_h))
+            for t in range(1, T_h + 1)
+        ]
+
+        # ── Bin assignment from Stage-1 SoC ──────────────────────────────────
+        # At start of timestep t, SoC is E_traj[t-1].
+        # Bin k is active when E_traj[t-1] < e_hi[k] (last bin catches the rest).
+        lambda_t: dict = {}
+        z_fixed: dict = {}
+        for t in range(1, T_h + 1):
+            e_start = E_traj[t - 1]
+            k_t = K - 1  # default: last bin
+            for k in range(K - 1):
+                if e_start < e_hi[k]:
+                    k_t = k
+                    break
+            lambda_t[t] = lam_h[k_t]
+            for k in range(K):
+                z_fixed[(t, k)] = 1.0 if k == k_t else 0.0
+
+        # ── Stage 2: augmented MILP (same binaries + linear degradation term) ─
+        logger.info("  [PWL 2-stage] house %s — stage 2 (degradation MILP)...", h)
+        deg_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
+        deg_m = deg_mh.make_instance(
+            houses=[h],
+            loads_by_house={h: loads_by_house[h]},
+            bat_params_by_house={h: bp},
+            c_grid={h: _tariff_for_house(c_grid, h)},
+            c_sell={h: _tariff_for_house(c_sell, h)},
+            pv_by_house={h: pv_by_house[h]},
+            alpha_mode="fixed",
+        )
+        # Augment objective with the time-varying linear degradation penalty.
+        # lambda_t[t] is a Python float (not a Pyomo Param), so the expression
+        # is purely linear — no new binary or continuous variables added.
+        base_expr = deg_m.obj.expr
+        deg_m.del_component("obj")
+        deg_m.obj = pyo.Objective(
+            expr=base_expr + pyo.quicksum(
+                lambda_t[t] * (deg_m.P_ch[h, t] + deg_m.P_dis[h, t]) * dt_hours
+                for t in range(1, T_h + 1)
+            ),
+            sense=pyo.minimize,
+        )
+        results_2, last_solver = _solve_model_safe(
+            deg_m, solver=solver, options=solver_options, tee=tee)
+        tc_2 = getattr(results_2.solver, "termination_condition", None)
+        if tc_2 not in _ACCEPTABLE:
+            raise RuntimeError(f"Case '{case_name}', house '{h}': stage-2 returned {tc_2}")
+        if tc_2 == pyo.TerminationCondition.maxTimeLimit:
+            _test = next(iter(deg_m.P_imp.values()), None)
+            if _test is None or _test.value is None:
+                raise RuntimeError(
+                    f"Case '{case_name}', house '{h}': stage-2 hit time limit with no feasible solution.")
+            logger.warning("  [PWL 2-stage] house %s stage-2 hit time limit — using best solution.", h)
+        logger.info("  [PWL 2-stage] house %s stage-2 done (tc=%s).", h, tc_2)
+
+        terminations[h] = f"s1:{tc_1},s2:{tc_2}"
+        house_dfs[h] = _extract_house_dataframe(deg_m, h)
+
+        # ── PWL metrics (computed from Stage-2 dispatch + Stage-1 bins) ───────
+        deg_cost_h = 0.0
+        throughput_h = 0.0
+        bin_hours_h = {k: 0.0 for k in range(K)}
+        for t in range(1, T_h + 1):
+            p_ch_t = max(0.0, pyo.value(deg_m.P_ch[h, t]) or 0.0)
+            p_dis_t = max(0.0, pyo.value(deg_m.P_dis[h, t]) or 0.0)
+            deg_cost_h += lambda_t[t] * (p_ch_t + p_dis_t) * dt_hours
+            throughput_h += (p_ch_t + p_dis_t) * dt_hours
+            for k in range(K):
+                bin_hours_h[k] += z_fixed[(t, k)] * dt_hours
+
+        row: dict = {
+            "house": str(h),
+            "pwl_degradation_cost_EUR": deg_cost_h,
+            "battery_throughput_kWh": throughput_h,
+        }
+        for k in range(K):
+            row[f"bin_hours_{k}"] = bin_hours_h[k]
+        pwl_rows.append(row)
+
+    pwl_metrics = pd.DataFrame(pwl_rows) if pwl_rows else pd.DataFrame()
+    return house_dfs, pwl_metrics, terminations, last_solver
+
+
 def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
              time_override=None, solver="highs", solver_options=None):
     case_path = _abs_from_root(case_yaml_path)
@@ -300,7 +526,14 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
     dt_hours = float(time_cfg.get("dt_hours", 1.0))
     start = time_cfg.get("start", None)
 
-    loads_by_house = _load_loads(cfg, houses=houses, T=T)
+    # ── Resampling: load native 15-min data, then down-sample if dt_hours > 0.25 ──
+    # All CSV inputs are recorded at NATIVE_DT_HOURS (0.25 h = 15 min).
+    # If dt_hours is coarser (e.g. 1.0 h for PWL runs), we must load enough native
+    # rows to cover the desired model horizon and then average them down.
+    _resample_factor = max(1, round(dt_hours / NATIVE_DT_HOURS))
+    T_native = T * _resample_factor   # rows to load from CSV at 15-min resolution
+
+    loads_by_house = _load_loads(cfg, houses=houses, T=T_native)
 
     sharing_cfg = cfg.get("sharing") or {}
     sharing_mode = str(sharing_cfg.get("mode", "fixed_alpha"))
@@ -309,15 +542,31 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
     pv_by_house = None
     pv_total = None
     pv_info = {}
+    data_cfg = cfg.get("data", {}) if isinstance(cfg.get("data", {}), dict) else {}
     if alpha_mode == "optimal":
-        data_cfg = cfg.get("data", {}) if isinstance(cfg.get("data", {}), dict) else {}
-        pv_total = load_pv_total(data_cfg, ROOT, T)
+        pv_total = load_pv_total(data_cfg, ROOT, T_native)
+        if _resample_factor > 1:
+            pv_total = _resample_series(pv_total, _resample_factor)
         pv_info = {"mode": "optimal_alpha", "pv_total_sum_kWh": float(sum(pv_total) * dt_hours)}
     else:
         pv_by_house, pv_info, _pv_debug = prepare_pv_by_house(
-            cfg, houses=houses, T=T, root=ROOT, loads_by_house=loads_by_house)
+            cfg, houses=houses, T=T_native, root=ROOT, loads_by_house=loads_by_house)
+        if _resample_factor > 1:
+            pv_by_house = {h: _resample_series(v, _resample_factor) for h, v in pv_by_house.items()}
 
-    c_grid, c_sell = build_tariffs(cfg, T, houses=houses, root=ROOT)
+    if _resample_factor > 1:
+        loads_by_house = {h: _resample_series(v, _resample_factor) for h, v in loads_by_house.items()}
+        logger.info("Resampled input data from %.2fh to %.2fh (factor=%d, T=%d→%d).",
+                    NATIVE_DT_HOURS, dt_hours, _resample_factor, T_native, T)
+
+    c_grid, c_sell = build_tariffs(cfg, T_native, houses=houses, root=ROOT)
+    if _resample_factor > 1:
+        if isinstance(c_grid, dict):
+            c_grid = {h: _resample_series(v, _resample_factor) for h, v in c_grid.items()}
+            c_sell = {h: _resample_series(v, _resample_factor) for h, v in c_sell.items()}
+        else:
+            c_grid = _resample_series(list(c_grid), _resample_factor)
+            c_sell = _resample_series(list(c_sell), _resample_factor)
     allow_export = bool((cfg.get("grid", {}) or {}).get("allow_export", True))
 
     bat_params_by_house = {
@@ -332,6 +581,9 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
 
     # Model priority: PWL > linear degradation > base
     if isinstance(pwl_cfg, dict):
+        model_kind = "house_indexed_degradation_pwl"
+        # PWL cases use per-house decomposition — no monolithic model is built here.
+        # mh is still created for metadata access (soc_breakpoints, lambda_by_bin).
         from batEnv.models.multi_house_degradation_pwl import (
             _DEFAULT_LAMBDA_BY_BIN, _DEFAULT_SOC_BREAKPOINTS)
         soc_bkpts = [float(v) for v in pwl_cfg.get("soc_breakpoints", _DEFAULT_SOC_BREAKPOINTS)]
@@ -345,51 +597,137 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
             dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc,
             soc_breakpoints=soc_bkpts, lambda_by_bin=lam_bins,
             lambda_by_bin_per_house=lam_per_house)
-        model_kind = "house_indexed_degradation_pwl"
+        m = None  # built per-house later
     elif lambda_deg > 0.0:
         mh = MultiHouseModelDegradation(
             dt=dt_hours, allow_export=allow_export,
             cyclic_soc=cyclic_soc, lambda_deg=lambda_deg)
         model_kind = "house_indexed_degradation"
+        m = mh.make_instance(
+            houses=houses, loads_by_house=loads_by_house,
+            pv_by_house=pv_by_house, pv_total=pv_total,
+            alpha_mode=alpha_mode, bat_params_by_house=bat_params_by_house,
+            c_grid=c_grid, c_sell=c_sell)
     else:
         mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
         model_kind = "house_indexed_unified"
+        m = mh.make_instance(
+            houses=houses, loads_by_house=loads_by_house,
+            pv_by_house=pv_by_house, pv_total=pv_total,
+            alpha_mode=alpha_mode, bat_params_by_house=bat_params_by_house,
+            c_grid=c_grid, c_sell=c_sell)
 
-    m = mh.make_instance(
-        houses=houses, loads_by_house=loads_by_house,
-        pv_by_house=pv_by_house, pv_total=pv_total,
-        alpha_mode=alpha_mode, bat_params_by_house=bat_params_by_house,
-        c_grid=c_grid, c_sell=c_sell)
-
-    solver_used = None
-    termination = None
-    try:
-        results, solver_used = _solve_model_safe(
-            m, solver=solver, options=solver_options, tee=tee)
-        termination = str(getattr(results.solver, "termination_condition", ""))
-        tc = getattr(results.solver, "termination_condition", None)
-        if tc not in (pyo.TerminationCondition.optimal, pyo.TerminationCondition.feasible):
-            raise RuntimeError(f"Solver returned {termination}")
-    except Exception as e:  # noqa: BLE001
-        diag_pv_by_house = pv_by_house
-        if diag_pv_by_house is None and pv_total is not None:
-            n_h = max(1, len(houses))
-            diag_pv_by_house = {h: [v / n_h for v in pv_total] for h in houses}
-        raise _handle_infeasible(
-            case_out_dir=case_out_dir, case_name=case_name, debug_cfg=debug_cfg,
-            loads_by_house=loads_by_house, pv_by_house=diag_pv_by_house,
-            bat_params_by_house=bat_params_by_house, solver_used=solver_used,
-            solver=solver, termination=termination, model=m, original_exc=e) from e
-
-    for h, df in multi_model_to_dataframes(m).items():
-        df.to_csv(case_out_dir / f"results_house_{h}.csv", index=False)
-
-    # Export PWL scalar metrics (degradation cost + bin occupancy) when applicable.
+    # ── PWL decomposed path ──────────────────────────────────────────────────
+    # For PWL degradation with fixed-alpha: houses are fully decoupled → solve
+    # each house independently (14k binaries each vs 115k monolithic).
+    # For PWL with optimal alpha: two-stage — first solve base model to get PV
+    # allocation, then fix and decompose per house.
     if model_kind == "house_indexed_degradation_pwl":
-        pwl_df = extract_pwl_metrics_dataframe(m)
-        if not pwl_df.empty:
-            pwl_df.to_csv(case_out_dir / "results_pwl_metrics.csv", index=False)
+        _pwl_pv_by_house = pv_by_house  # may be None for optimal alpha
 
+        if alpha_mode == "optimal":
+            # Stage 1: solve base model (no PWL) to get optimal PV allocation.
+            logger.info("PWL optimal-alpha: stage 1 — solving base model for PV allocation...")
+            base_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
+            base_m = base_mh.make_instance(
+                houses=houses, loads_by_house=loads_by_house,
+                bat_params_by_house=bat_params_by_house,
+                c_grid=c_grid, c_sell=c_sell,
+                pv_total=pv_total, alpha_mode="optimal",
+            )
+            try:
+                base_results, base_solver = _solve_model_safe(
+                    base_m, solver=solver, options=solver_options, tee=False)
+                base_tc = getattr(base_results.solver, "termination_condition", None)
+                _ACCEPTABLE = (pyo.TerminationCondition.optimal,
+                               pyo.TerminationCondition.feasible,
+                               pyo.TerminationCondition.maxTimeLimit)
+                if base_tc not in _ACCEPTABLE:
+                    raise RuntimeError(f"Base model returned {base_tc}")
+                # Extract fixed PV allocation from optimal solution.
+                # max(0.0, ...) guards against tiny negative floats from solver precision.
+                _pwl_pv_by_house = {
+                    h: [max(0.0, pyo.value(base_m.PV[h, t]) or 0.0) for t in range(1, T + 1)]
+                    for h in houses
+                }
+                logger.info("PWL optimal-alpha: stage 1 done. Stage 2 — per-house PWL solve...")
+            except Exception as base_e:
+                logger.warning("PWL stage-1 base solve failed (%s) — falling back to equal PV split.", base_e)
+                _pwl_pv_by_house = {
+                    h: [float(pv_total[t]) / max(1, len(houses)) for t in range(T)]
+                    for h in houses
+                }
+
+        solver_used = None
+        try:
+            house_dfs, pwl_metrics, terminations, solver_used = _solve_pwl_per_house(
+                houses=houses,
+                loads_by_house=loads_by_house,
+                bat_params_by_house=bat_params_by_house,
+                c_grid=c_grid,
+                c_sell=c_sell,
+                pv_by_house=_pwl_pv_by_house,
+                dt_hours=dt_hours,
+                allow_export=allow_export,
+                cyclic_soc=cyclic_soc,
+                pwl_cfg_dict=pwl_cfg,
+                solver=solver,
+                solver_options=solver_options,
+                tee=tee,
+                case_name=case_name,
+            )
+        except Exception as e:  # noqa: BLE001
+            diag_pv = _pwl_pv_by_house or {h: [0.0] * T for h in houses}
+            raise _handle_infeasible(
+                case_out_dir=case_out_dir, case_name=case_name, debug_cfg=debug_cfg,
+                loads_by_house=loads_by_house, pv_by_house=diag_pv,
+                bat_params_by_house=bat_params_by_house, solver_used=solver_used,
+                solver=solver, termination=None, model=None, original_exc=e) from e
+
+        for h, df in house_dfs.items():
+            df.to_csv(case_out_dir / f"results_house_{h}.csv", index=False)
+        if not pwl_metrics.empty:
+            pwl_metrics.to_csv(case_out_dir / "results_pwl_metrics.csv", index=False)
+
+        # Summarise terminations across houses.
+        termination = "; ".join(f"{h}:{tc}" for h, tc in terminations.items())
+
+    # ── Standard (monolithic) path ───────────────────────────────────────────
+    else:
+        solver_used = None
+        termination = None
+        try:
+            results, solver_used = _solve_model_safe(
+                m, solver=solver, options=solver_options, tee=tee)
+            termination = str(getattr(results.solver, "termination_condition", ""))
+            tc = getattr(results.solver, "termination_condition", None)
+            _ACCEPTABLE = (pyo.TerminationCondition.optimal,
+                           pyo.TerminationCondition.feasible,
+                           pyo.TerminationCondition.maxTimeLimit)
+            if tc not in _ACCEPTABLE:
+                raise RuntimeError(f"Solver returned {termination}")
+            if tc == pyo.TerminationCondition.maxTimeLimit:
+                _test_var = next(iter(m.P_imp.values()), None)
+                _has_solution = _test_var is not None and _test_var.value is not None
+                if not _has_solution:
+                    raise RuntimeError(
+                        f"Case '{case_name}' hit time limit with no feasible solution found.")
+                logger.warning("Case '%s' hit time limit — saving best solution found.", case_name)
+        except Exception as e:  # noqa: BLE001
+            diag_pv_by_house = pv_by_house
+            if diag_pv_by_house is None and pv_total is not None:
+                n_h = max(1, len(houses))
+                diag_pv_by_house = {h: [v / n_h for v in pv_total] for h in houses}
+            raise _handle_infeasible(
+                case_out_dir=case_out_dir, case_name=case_name, debug_cfg=debug_cfg,
+                loads_by_house=loads_by_house, pv_by_house=diag_pv_by_house,
+                bat_params_by_house=bat_params_by_house, solver_used=solver_used,
+                solver=solver, termination=termination, model=m, original_exc=e) from e
+
+        for h, df in multi_model_to_dataframes(m).items():
+            df.to_csv(case_out_dir / f"results_house_{h}.csv", index=False)
+
+    # ── Meta ─────────────────────────────────────────────────────────────────
     meta = {
         "case": case_name,
         "case_yaml": str(case_path),

@@ -1,0 +1,14 @@
+extends: _b8_base.yaml
+case: b8_pv19_optimal_pwl_export
+
+grid:
+  allow_export: true
+
+sharing:
+  mode: optimal
+
+model:
+  cyclic_soc: true
+  battery_degradation_pwl:
+    soc_breakpoints: [0.0, 0.2, 0.8, 1.0]
+    lambda_by_bin: [0.08, 0.03, 0.06]

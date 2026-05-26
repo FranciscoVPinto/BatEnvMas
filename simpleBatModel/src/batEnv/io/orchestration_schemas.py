@@ -1,17 +1,3 @@
-"""
-JSON schemas for the orchestration YAMLs (runset, plotset).
-
-Each shape is mutually exclusive (parent vs single vs single-experiment),
-distinguished by:
-  - parent runset/plotset:    `runset` / `plotset` is a LIST of paths
-  - single runset/plotset:    `runset` / `plotset` is a STRING (the name)
-  - single experiment:        `experiment` (str) + `case_yaml` (str) at top
-
-Schemas are lenient at top level (additionalProperties: true) to tolerate
-the `_runset_path` / `_plotset_path` keys injected by the loader, plus any
-custom annotations the user might want. Fixed sub-sections (defaults.solver,
-defaults.time, defaults.plots) are tightened to catch typos.
-"""
 from __future__ import annotations
 
 
@@ -82,16 +68,22 @@ _CASES_GLOB_SCHEMA = {
     ],
 }
 
-# Sweep: each base case is run once per entry, with `overrides` deep-merged
-# on top of the case cfg and the run output named "<case>__<suffix>". This
-# enables fair multi-axis comparisons (e.g. same alpha set across multiple
-# degradation costs) without duplicating per-case YAMLs.
 _SWEEP_ENTRY_SCHEMA = {
     "type": "object",
     "required": ["suffix"],
     "properties": {
         "suffix": {"type": "string", "minLength": 1},
         "overrides": {"type": "object"},
+        "time_override": {
+            "type": "object",
+            "properties": {
+                "horizon": {"type": ["integer", "null"], "minimum": 1},
+                "dt_hours": {"type": "number", "exclusiveMinimum": 0},
+                "start": {"type": ["string", "null"]},
+            },
+            "additionalProperties": False,
+        },
+        "outputs_subdir": {"type": "string", "minLength": 1},
     },
     "additionalProperties": False,
 }

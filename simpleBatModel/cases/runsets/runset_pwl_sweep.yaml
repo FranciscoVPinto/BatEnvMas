@@ -1,0 +1,33 @@
+runset: pwl_sweep
+cases_base_dir: cases/scenarios/building8
+cases_glob:
+  - "b8_pv15*.yaml"
+  - "b8_pv16*.yaml"
+  - "b8_pv17*.yaml"
+  - "b8_pv18*.yaml"
+  - "b8_pv19*.yaml"
+
+# PWL degradation models use hourly timesteps (dt_hours: 1.0).
+# This reduces binary variables 4x vs 15-min, making per-house sub-problems
+# tractable (3600 binaries/house vs 14400). Input data is automatically
+# resampled from 15-min to 1-hour in run_case.py.
+sweep:
+  - suffix: 1month
+    outputs_subdir: 1month
+    time_override: { horizon: 720, dt_hours: 1.0 }
+  - suffix: 3months
+    outputs_subdir: 3months
+    time_override: { horizon: 2160, dt_hours: 1.0 }
+  - suffix: 6months
+    outputs_subdir: 6months
+    time_override: { horizon: 4320, dt_hours: 1.0 }
+
+defaults:
+  outputs_dir: results/full_horizon_sweep
+  tee: false
+  solver:
+    name: appsi_highs
+    options:
+      mip_rel_gap: 0.005
+      time_limit: 3600.0
+      mip_heuristic_effort: 1.0

@@ -49,7 +49,7 @@ from batEnv.utils.community_metrics import (  # noqa: E402
 logger = logging.getLogger(__name__)
 
 
-# ---------- plotset YAML ----------
+
 
 def load_plotset_yaml(path: str | Path) -> dict:
     p = Path(path)
@@ -128,7 +128,7 @@ def _auto_pick_outputs_dir(outputs_dir: Path, plotset_name: str, case_names: lis
     return best
 
 
-# ---------- per-case plots ----------
+
 
 def make_per_case_plots(
     case_name: str,
@@ -194,7 +194,7 @@ def make_per_case_plots(
     logger.info("Per-case plots saved: %s", per_case_root)
 
 
-# ---------- comparisons across cases ----------
+
 
 _COMPARE_VARS = (
     "E", "P_imp", "P_exp", "P_ch", "P_dis",
@@ -400,7 +400,7 @@ def make_comparisons(
     logger.info("Comparisons root: %s", comp_root)
 
 
-# ---------- single plotset ----------
+
 
 def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
     plotset_name = str(ps.get("plotset", plotset_yaml_path.stem))
@@ -430,21 +430,25 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
     # virtual cases named "<base>__<suffix>". The case_yaml_path stays the
     # original (used for SOC bounds / dt_hours); only the case_name and
     # output directory change.
+    # When a sweep entry has `outputs_subdir`, the case_out_dir becomes
+    # <outputs_dir>/<subdir>/<run_name> instead of <outputs_dir>/<run_name>.
     sweep_entries = ps.get("sweep") or []
     if not sweep_entries:
         sweep_entries = [{"suffix": ""}]
 
-    resolved_cases: list[tuple[str, Path]] = []
+    # resolved_cases now also carries the optional sweep subdir (None for flat).
+    resolved_cases: list[tuple[str, Path, str | None]] = []
     for case_path in case_files:
         if not case_path.exists():
             raise FileNotFoundError(f"Case YAML not found: {case_path}")
         base_case_name = get_case_name(case_path)
         for sweep in sweep_entries:
             suffix = str(sweep.get("suffix", "")).strip()
+            sub = sweep.get("outputs_subdir")
             run_name = f"{base_case_name}__{suffix}" if suffix else base_case_name
-            resolved_cases.append((run_name, case_path))
+            resolved_cases.append((run_name, case_path, sub))
 
-    enabled_case_names = [cn for cn, _ in resolved_cases if enabled_map.get(cn, True) is not False]
+    enabled_case_names = [cn for cn, _, _ in resolved_cases if enabled_map.get(cn, True) is not False]
     outputs_dir = _auto_pick_outputs_dir(outputs_dir, plotset_name, enabled_case_names)
 
     out_root = outputs_dir / "_plots" / plotset_name
@@ -457,11 +461,13 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
     logger.info("  out_root      : %s", out_root.resolve())
 
     cases_info: list[tuple[str, Path, float]] = []
-    for case_name, case_path in resolved_cases:
+    for case_name, case_path, sub in resolved_cases:
         if enabled_map.get(case_name, True) is False:
             logger.info("Skipping case: %s (%s)", case_name, case_path.name)
             continue
-        case_out_dir = outputs_dir / case_name
+        # Nested layout: <outputs_dir>/<sub>/<case_name>/. Flat: <outputs_dir>/<case_name>/.
+        base_outputs_for_case = (outputs_dir / sub) if sub else outputs_dir
+        case_out_dir = base_outputs_for_case / case_name
         dt_hours = get_dt_hours(case_path, case_out_dir, dt_default=1.0)
         cases_info.append((case_name, case_out_dir, float(dt_hours)))
 
@@ -469,7 +475,7 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
         logger.warning("No enabled cases to plot.")
         return
 
-    case_path_by_name = {cn: cp for cn, cp in resolved_cases}
+    case_path_by_name = {cn: cp for cn, cp, _ in resolved_cases}
 
     if do_per_case:
         for case_name, case_out_dir, dt_hours in cases_info:
@@ -492,7 +498,7 @@ def _run_single_plotset(ps: dict, *, plotset_yaml_path: Path) -> None:
     logger.info("Plotset finished. Output in: %s", out_root)
 
 
-# ---------- parent plotset ----------
+
 
 def _run_parent_plotset(parent: dict, *, parent_yaml_path: Path) -> None:
     children = parent.get("plotset", [])
@@ -529,7 +535,7 @@ def _run_parent_plotset(parent: dict, *, parent_yaml_path: Path) -> None:
         _run_single_plotset(child_cfg, plotset_yaml_path=child_path)
 
 
-# ---------- single experiment plotting ----------
+
 
 def _run_single_experiment_plot(exp: dict, *, exp_yaml_path: Path) -> None:
     """
@@ -598,7 +604,7 @@ def _run_single_experiment_plot(exp: dict, *, exp_yaml_path: Path) -> None:
     logger.info("Single experiment plotting finished. Output in: %s", out_root)
 
 
-# ---------- entry point ----------
+
 
 def make_plots_all(plotset_yaml: str | Path) -> None:
     plotset_yaml_path = Path(plotset_yaml)

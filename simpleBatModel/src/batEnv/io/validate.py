@@ -16,15 +16,8 @@ def _keys_to_str(d: dict[Any, Any]) -> dict[str, Any]:
 
 def canonicalize_case_cfg(cfg: dict[str, Any]) -> Tuple[dict[str, Any], list[str]]:
     """
-    Returns (cfg2, warnings)
-
-    Canonicaliza IDs (ex.: 1 vs "1") para STR em:
-      - houses
-      - data.loads
-      - sharing.alpha
-      - sharing.alpha_profile
-
-    Nao altera valores numericos.
+    Returns (cfg2, warnings). Normalises dict keys to str in houses,
+    data.loads, sharing.alpha, and sharing.alpha_profile.
     """
     if not isinstance(cfg, dict):
         raise ValueError("Case cfg must be a dict")

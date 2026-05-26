@@ -1,19 +1,18 @@
 runset:
-  - runsets/runset_pv_building8.yaml
   - runsets/runset_alfa_deg_sweep.yaml
+  - runsets/runset_full_horizon_sweep.yaml
+  - runsets/runset_pwl_sweep.yaml
 
-# Maps child-runset name -> enabled flag. The name must match the `runset:`
-# field inside the child YAML, NOT the matching plotset. Default for unlisted
-# entries is true.
 enabled:
-  pv_building8_share: true
   alfa_deg_sweep: true
+  full_horizon_sweep: true
+  pwl_sweep: true
 
 defaults:
   outputs_dir: results
   tee: true
   solver:
-    name: highs
+    name: appsi_highs
     options: {}
   time:
     horizon: 2688

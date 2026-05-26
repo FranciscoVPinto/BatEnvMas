@@ -1,0 +1,23 @@
+case: b8_pv11_no_sharing_export__1month
+case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+  Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv11_no_sharing_export__1month.yaml
+created_at: '2026-05-09T23:39:21.068904'
+dt_hours: 0.25
+horizon: 2880
+start: 2025-01-01 00:00
+allow_export: true
+cyclic_soc: true
+alpha_mode: fixed
+battery_degradation_eur_per_kwh: 0.0
+battery_degradation_pwl: null
+sharing_enabled: false
+model_kind: house_indexed_unified
+warnings: []
+pv_info:
+  warnings: []
+  mode: per_house
+solver_used: highs
+termination_condition: optimal
+debug:
+  write_lp: true
+  max_rows: 30

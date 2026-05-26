@@ -1,0 +1,18 @@
+plotset: full_horizon_sweep
+cases_base_dir: cases/scenarios/building8
+outputs_dir: results/full_horizon_sweep
+cases_glob: "b8_*.yaml"
+
+sweep:
+  - suffix: 1month
+    outputs_subdir: 1month
+  - suffix: 3months
+    outputs_subdir: 3months
+  - suffix: 6months
+    outputs_subdir: 6months
+  - suffix: 1year
+    outputs_subdir: 1year
+
+plots:
+  per_case: false
+  comparisons: true

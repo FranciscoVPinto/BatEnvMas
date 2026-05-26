@@ -1,8 +1,6 @@
 extends: _b8_base.yaml
 case: b8_pv10_no_battery_export
 
-# Baseline 'how much is the battery worth?'. Same allocation logic as
-# pv04 (consumption_mean) but with battery capacities zeroed.
 grid:
   allow_export: true
 

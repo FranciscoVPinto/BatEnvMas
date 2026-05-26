@@ -1,0 +1,25 @@
+extends: _b8_base.yaml
+case: b8_pv15_equal_pwl_export
+
+grid:
+  allow_export: true
+
+sharing:
+  mode: fixed_alpha
+  normalize: false
+  strict_sum_to_one: true
+  alpha:
+    Apt1: 0.125
+    Apt2: 0.125
+    Apt3: 0.125
+    Apt4: 0.125
+    Apt5: 0.125
+    Apt6: 0.125
+    Apt7: 0.125
+    Apt8: 0.125
+
+model:
+  cyclic_soc: true
+  battery_degradation_pwl:
+    soc_breakpoints: [0.0, 0.2, 0.8, 1.0]
+    lambda_by_bin: [0.08, 0.03, 0.06]

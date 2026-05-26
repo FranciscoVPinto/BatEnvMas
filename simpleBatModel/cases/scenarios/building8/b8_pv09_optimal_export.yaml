@@ -1,9 +1,6 @@
 extends: _b8_base.yaml
 case: b8_pv09_optimal_export
 
-# Theoretical upper bound: the MILP picks the PV allocation alpha_i(t)
-# that minimises community cost. Strategies pv01..pv08 should all sit
-# above this in cost — gap quantifies "money left on the table".
 grid:
   allow_export: true
 

@@ -1,7 +1,5 @@
 case: b8_pv11_no_sharing_export
 
-# Baseline 'how much is sharing worth?'. Each apartment gets a single
-# PV panel (its own); no shared pool, no alpha. Battery as in _b8_base.
 data:
   pv:
     Apt1: data/pv_gen_01.csv

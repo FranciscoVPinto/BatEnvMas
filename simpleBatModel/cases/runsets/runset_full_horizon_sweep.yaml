@@ -1,0 +1,33 @@
+runset: full_horizon_sweep
+cases_base_dir: cases/scenarios/building8
+cases_glob:
+  - "b8_pv0*.yaml"
+  - "b8_pv10*.yaml"
+  - "b8_pv11*.yaml"
+  - "b8_pv12*.yaml"
+  - "b8_pv13*.yaml"
+  - "b8_pv14*.yaml"
+
+sweep:
+  - suffix: 1month
+    outputs_subdir: 1month
+    time_override: { horizon: 2880 }
+  - suffix: 3months
+    outputs_subdir: 3months
+    time_override: { horizon: 8640 }
+  - suffix: 6months
+    outputs_subdir: 6months
+    time_override: { horizon: 17280 }
+  - suffix: 1year
+    outputs_subdir: 1year
+    time_override: { horizon: 35040 }
+
+defaults:
+  outputs_dir: results/full_horizon_sweep
+  tee: false
+  solver:
+    name: appsi_highs
+    options:
+      mip_rel_gap: 0.005
+      time_limit: 14400.0
+      mip_heuristic_effort: 1.0

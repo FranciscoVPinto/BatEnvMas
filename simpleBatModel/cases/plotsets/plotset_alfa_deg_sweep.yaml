@@ -2,8 +2,6 @@ plotset: alfa_deg_sweep
 cases_base_dir: cases/scenarios/building8
 outputs_dir: results/alfa_deg_sweep
 
-# The sweep produces case dirs named "<base>__<suffix>" — list them here
-# explicitly so the plotter knows which to compare.
 cases:
   - b8_pv01_equal_export.yaml
   - b8_pv02_weighted_export.yaml
@@ -16,5 +14,5 @@ sweep:
   - suffix: with_deg
 
 plots:
-  per_case: false       # too many cases — skip per-case to keep figure count manageable
+  per_case: false
   comparisons: true

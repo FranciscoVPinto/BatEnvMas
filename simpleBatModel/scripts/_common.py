@@ -1,7 +1,3 @@
-"""
-Shared helpers for the CLI scripts (run_case, run_experiment, render_results,
-summarize). Keeps each script focused on its own orchestration logic.
-"""
 from __future__ import annotations
 
 import logging
@@ -13,7 +9,6 @@ import pandas as pd
 import yaml
 
 
-# ---------- module setup ----------
 
 def add_src_to_path(root: Path) -> None:
     """Make `from batEnv...` imports work without installing the package."""
@@ -42,7 +37,6 @@ def setup_logging(verbose: bool = False) -> None:
     root.setLevel(level)
 
 
-# ---------- YAML loading ----------
 
 def load_yaml_dict(path: str | Path, *, inject_key: Optional[str] = None) -> dict:
     """
@@ -61,7 +55,6 @@ def load_yaml_dict(path: str | Path, *, inject_key: Optional[str] = None) -> dic
     return cfg
 
 
-# ---------- dict / path utilities ----------
 
 def deep_merge(base: dict, override: dict) -> dict:
     """Recursive merge: dicts are merged key-wise, scalars from `override` win."""
@@ -94,7 +87,6 @@ def resolve_from(yaml_path: Path, maybe_rel: str | Path, *, root: Optional[Path]
     return cand
 
 
-# ---------- runset / experiment shapes ----------
 
 def is_single_experiment(cfg: dict) -> bool:
     """A single-experiment YAML has top-level 'experiment' and 'case_yaml'."""
@@ -146,7 +138,6 @@ def collect_case_files(cfg: dict, base_dir: Path) -> list[Path]:
     return out
 
 
-# ---------- results discovery ----------
 
 def read_house_csvs(case_out_dir: Path) -> dict[str, pd.DataFrame]:
     """Load every results_house_*.csv in `case_out_dir` keyed by house id."""

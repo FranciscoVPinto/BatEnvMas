@@ -1,0 +1,547 @@
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║              MAPA DO PROJECTO BatEnvMas — Documento de Referência           ║
+# ║  Lê este ficheiro como um diagrama: a hierarquia YAML *é* a arquitectura.   ║
+# ║  Gerado automaticamente a partir do código real em 2026-06-02.              ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 📌 IDENTIFICAÇÃO DO PROJECTO
+# ═══════════════════════════════════════════════════════════════════════════════
+
+projecto:
+  nome: BatEnvMas
+  submodulo_principal: simpleBatModel
+  linguagem: Python 3.x
+  framework_optimizacao: Pyomo (PuLP-style MILP via ConcreteModel)
+  solver_padrao: HiGHS (appsi_highs / highs)
+  caso_de_estudo: Edifício 8 — comunidade de 8 apartamentos com PV partilhado e bateria individual por fração
+  objectivo_global: >
+    Minimizar o custo total de energia eléctrica de uma comunidade de energia renovável
+    (CER) com geração fotovoltaica partilhada e baterias domésticas individuais,
+    comparando diferentes estratégias de partilha de PV e modelos de degradação.
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 📁 ESTRUTURA DE FICHEIROS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+estrutura_de_ficheiros:
+  raiz: simpleBatModel/
+
+  # ── Ponto de entrada ──────────────────────────────────────────────────────
+  scripts/:
+    _common.py:       Utilitários partilhados (logging, deep_merge, load_yaml_dict, add_src_to_path)
+    run_experiment.py: Orquestrador principal — lê runset YAML e lança casos
+    run_case.py:       Executa um único caso YAML: carrega dados, monta modelo, resolve, guarda resultados
+    summarize.py:      Agrega CSVs de resultados e calcula métricas por caso/casa
+    render_results.py: Gera gráficos (usa módulo plotting)
+
+  # ── Biblioteca principal ──────────────────────────────────────────────────
+  src/batEnv/:
+    __init__.py:      (vazio — package marker)
+    io/:
+      loaders.py:               Carrega YAMLs (com herança extends:), CSVs, tarifas
+      pv_sharing.py:            Calcula alpha[h,t] para cada estratégia de partilha
+      case_schema.py:           Schema de validação de case YAML (pydantic/dataclass)
+      orchestration_schemas.py: Schema de runset/plotset YAML
+      validate.py:              validate_case_cfg_basic / validate_case_cfg_schema
+    models/:
+      multi_house.py:                 Modelo MILP base (alpha fixo ou óptimo)
+      multi_house_degradation.py:     Extensão com penalidade linear de degradação
+      multi_house_degradation_pwl.py: Extensão com degradação PWL por bins de SoC
+    utils/:
+      community_metrics.py: SSR, SC, Gini, métricas de equidade entre apartamentos
+      export.py:            multi_model_to_dataframes — extrai resultados do modelo Pyomo para DataFrame
+      solve.py:             (auxiliar de solver)
+    plotting/:
+      simple.py:   Gráficos de timeseries por casa
+      compare.py:  Gráficos comparativos entre cenários
+
+  # ── Configurações de cenários ─────────────────────────────────────────────
+  cases/:
+    runset_parent.yaml:    Runset pai — lista os 3 runsets filhos e define defaults globais
+    runsets/:
+      runset_full_horizon_sweep.yaml: Sweep de horizonte (1mês/3m/6m/1ano) para pv01–pv14
+      runset_pwl_sweep.yaml:          Sweep PWL (1mês/3m/6m, dt=1h) para pv15–pv19
+      runset_alfa_deg_sweep.yaml:     Sweep alpha×degradação (no_deg/with_deg) para pv01–04,09
+    scenarios/building8/:
+      _b8_base.yaml:  Caso base com herança — define dados, tarifas, parâmetros de bateria
+      b8_pv01_*.yaml … b8_pv19_*.yaml:  Um ficheiro por cenário (herda do base via extends:)
+
+  # ── Resultados ────────────────────────────────────────────────────────────
+  results/:
+    full_horizon_sweep/{1month,3months,6months,1year}/<case_name>/: >
+      results_house_Apt1.csv … results_house_Apt8.csv
+      meta.yaml
+    alfa_deg_sweep/<case_name>/: idem
+    full_horizon_sweep/_sweep_tmp/: YAMLs temporários gerados pelo sweep (não editar)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ⚙️  WORKFLOW — Sequência de Execução
+# ═══════════════════════════════════════════════════════════════════════════════
+
+workflow:
+  passo_0_entrada:
+    comando: python scripts/run_experiment.py --runset cases/runset_parent.yaml
+    nota: >
+      O runset_parent.yaml lista os 3 runsets filhos.
+      run_experiment.py detecta automaticamente se é runset pai, runset simples ou experimento único.
+
+  passo_1_carregamento_de_configuracao:
+    modulo: loaders.load_case_yaml()
+    input: ficheiro YAML de caso (ex: b8_pv09_optimal_export.yaml)
+    output: dict Python com todos os parâmetros resolvidos
+    detalhe: >
+      Resolve herança via campo 'extends:' (suporta múltiplos bases, merge recursivo).
+      O YAML filho sobrepõe o pai — útil porque todos os cenários herdam de _b8_base.yaml.
+    exemplo:
+      b8_pv09_optimal_export.yaml extends _b8_base.yaml:
+        _b8_base fornece: data, tariffs, houses (com parâmetros de bateria)
+        b8_pv09 adiciona: sharing.mode=optimal, grid.allow_export=true
+
+  passo_2_sweep_de_parametros:
+    modulo: run_experiment._run_single_runset()
+    mecanismo: >
+      O campo 'sweep:' no runset define variações (ex: horizonte, dt, overrides).
+      Para cada entrada sweep × cada caso base, gera um YAML temporário em _sweep_tmp/
+      com deep_merge(base_cfg, overrides) e chama run_case com esse YAML.
+    exemplo_full_horizon_sweep:
+      casos_base: [pv01..pv14]
+      entradas_sweep: [1month(2880), 3months(8640), 6months(17280), 1year(35040)]
+      total_runs: 14 casos × 4 horizontes = 56 execuções
+
+  passo_3_carregamento_de_dados:
+    modulo: run_case.py
+    accoes:
+      - Inferir T (horizon) da config ou do CSV de carga
+      - Carregar CSVs de carga: load_series_csv_1col() → loads_by_house[h][t]
+      - Carregar PV: load_pv_total() (alpha óptimo) ou prepare_pv_by_house() (alpha fixo)
+      - Carregar tarifas: build_tariffs() → c_grid[h,t], c_sell[h,t]
+      - Resampling automático: se dt_hours > 0.25, agrupa grupos de 4 steps (15min→1h)
+    resolucao_temporal_nativa: 0.25 h (15 minutos)
+
+  passo_4_seleccao_de_modelo:
+    logica: >
+      Prioridade: PWL > degradação linear > base
+      Se model.battery_degradation_pwl presente → MultiHouseModelDegradationPWL
+      Else se model.battery_degradation_eur_per_kwh > 0 → MultiHouseModelDegradation
+      Else → MultiHouseModel (base)
+    nota_pwl: >
+      PWL usa decomposição per-house (2 stages por casa) em vez de modelo monolítico,
+      porque big-M constraints tornam B&B intractável para horizontes longos.
+
+  passo_5_resolucao:
+    modulo: run_case._solve_model_safe()
+    solver_chain: [appsi_highs, highs, cbc, glpk]  # tenta por ordem até encontrar disponível
+    opcoes_padrao:
+      mip_rel_gap: 0.005   # 0.5% de gap de optimalidade
+      time_limit: 14400.0  # 4 horas (full horizon sweep)
+    output: resultados Pyomo + termination_condition
+
+  passo_6_exportacao:
+    modulo: utils/export.multi_model_to_dataframes()
+    ficheiros_gerados:
+      - results_house_Apt1.csv … results_house_Apt8.csv  # timeseries por casa
+      - meta.yaml                                         # metadados da run
+      - results_pwl_metrics.csv                           # (só cenários PWL)
+    colunas_csv: [t, Load, PV, P_imp, P_exp, P_ch, P_dis, P_curt, E, c_grid, c_sell]
+
+  passo_7_analise:
+    modulo: scripts/summarize.py
+    calcula:
+      - SSR (Self-Sufficiency Ratio): (E_load - E_imp) / E_load
+      - SC  (Self-Consumption):       (E_pv - E_curt - E_exp) / E_pv
+      - Gini de custos entre apartamentos
+      - Métricas de equidade (CV, range, std por casa)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔋 MODELOS MILP
+# ═══════════════════════════════════════════════════════════════════════════════
+
+modelos_milp:
+
+  # ── Modelo Base ────────────────────────────────────────────────────────────
+  MultiHouseModel:
+    ficheiro: src/batEnv/models/multi_house.py
+    tipo: MILP com conjuntos H×T
+    conjuntos_pyomo:
+      m.H:  casas (Set ordenado, ex: [Apt1..Apt8])
+      m.T:  RangeSet(1, T)   # timesteps de decisão
+      m.TE: RangeSet(0, T)   # índice de energia (E[h,0] = E_init[h])
+
+    parametros:
+      m.dt:         passo temporal (horas)
+      m.E_init[h]:  energia inicial da bateria (kWh)
+      m.E_min[h]:   SoC mínimo (kWh)
+      m.E_max[h]:   SoC máximo (kWh)
+      m.P_ch_max[h]:  potência máx de carga (kW)
+      m.P_dis_max[h]: potência máx de descarga (kW)
+      m.eta_ch[h]:    eficiência de carga (adimensional)
+      m.eta_dis[h]:   eficiência de descarga (adimensional)
+      m.P_grid_max[h]: limite de importação/exportação da rede (kW)
+      m.Load[h,t]:    carga da casa h no instante t (kW)
+      m.c_grid[h,t]:  tarifa de compra (€/kWh)
+      m.c_sell[h,t]:  tarifa de venda (€/kWh)
+      m.PV[h,t]:      PV alocado à casa h (Param se alpha_fixo, Var se alpha_óptimo)
+
+    variaveis_continuas:
+      m.P_ch[h,t]:   potência de carga da bateria (kW) ≥ 0
+      m.P_dis[h,t]:  potência de descarga da bateria (kW) ≥ 0
+      m.P_imp[h,t]:  importação da rede (kW) ≥ 0
+      m.P_exp[h,t]:  exportação para a rede (kW) ≥ 0
+      m.P_curt[h,t]: curtailment de PV (kW) ≥ 0
+      m.E[h,t]:      energia armazenada (kWh) ≥ 0
+
+    variaveis_binarias:  # 2 × H × T binários no total
+      m.x[h,t]: 1 se a casa h está a carregar a bateria no instante t
+      m.y[h,t]: 1 se a casa h está a importar da rede no instante t
+
+    restricoes_principais:
+      energy_dyn:     E[h,t] = E[h,t-1] + (η_ch·P_ch - P_dis/η_dis)·dt
+      energy_init:    E[h,0] = E_init[h]
+      energy_bounds:  E_min[h] ≤ E[h,t] ≤ E_max[h]
+      energy_final:   E[h,T] ≥ E_init[h]  (cyclic SoC — evita esvaziamento no fim do horizonte)
+      no_simul_ch:    P_ch[h,t]  ≤ P_ch_max[h]  · x[h,t]     (mutex carga/descarga)
+      no_simul_dis:   P_dis[h,t] ≤ P_dis_max[h] · (1-x[h,t])
+      no_simul_imp:   P_imp[h,t] ≤ P_grid_max[h] · y[h,t]    (mutex import/export)
+      no_simul_exp:   P_exp[h,t] ≤ P_grid_max[h] · κ · (1-y[h,t])
+      curt_limit:     P_curt[h,t] ≤ PV[h,t]
+      power_balance:  Load[h,t] = PV[h,t]-P_curt + P_dis-P_ch + P_imp-P_exp
+
+    funcao_objectivo:
+      tipo: minimização
+      formula: min Σ_{h,t} (c_grid[h,t]·P_imp[h,t] - c_sell[h,t]·P_exp[h,t]) · dt
+
+    modos_pv:
+      alpha_fixo:
+        descricao: PV[h,t] é um Param exógeno — calculado antes da optimização pela estratégia de partilha
+        restricoes_adicionais: nenhuma
+      alpha_optimo:
+        descricao: PV[h,t] é uma Var contínua — o MILP escolhe a alocação óptima
+        restricoes_adicionais:
+          alpha_total: Σ_h PV[h,t] = PV_total[t]  (conservação total de PV)
+          alpha_bound: PV[h,t] ≤ PV_total[t]       (cada casa recebe no máximo o total)
+
+  # ── Extensão: Degradação Linear ───────────────────────────────────────────
+  MultiHouseModelDegradation:
+    ficheiro: src/batEnv/models/multi_house_degradation.py
+    extensao_de: MultiHouseModel
+    parametro_adicional:
+      lambda_deg[h]: custo de degradação (€/kWh) — aplica-se a P_ch e P_dis
+    modificacao_objectivo: >
+      obj += Σ_{h,t} λ[h] · (P_ch[h,t] + P_dis[h,t]) · dt
+    nota: >
+      Penaliza throughput total (carga + descarga), forçando o optimizador a
+      poupar a bateria. Parâmetro usado nos cenários: λ = 0.033 €/kWh.
+
+  # ── Extensão: Degradação PWL ──────────────────────────────────────────────
+  MultiHouseModelDegradationPWL:
+    ficheiro: src/batEnv/models/multi_house_degradation_pwl.py
+    extensao_de: MultiHouseModel (indirectamente, via 2-stage)
+    conceito: >
+      A degradação depende do nível de SoC: degradação é maior a SoC baixo ou alto.
+      O espaço [E_min, E_max] divide-se em K bins de SoC, cada um com λ[k] próprio.
+    parametros_padrao:
+      soc_breakpoints: [0.0, 0.2, 0.8, 1.0]   # 3 bins: [0-20%], [20-80%], [80-100%]
+      lambda_by_bin:   [0.08, 0.03, 0.06]       # €/kWh por bin (maior degradação nos extremos)
+    estrategia_de_resolucao: decomposicao_2_stages_por_casa
+    porque_2_stages: >
+      A formulação big-M monolítica adiciona K·T binários de bin-assignment
+      por casa (K=3 bins), tornando B&B intractável para horizontes longos.
+      A decomposição elimina esses binários adicionais:
+    stage_1:
+      modelo: MultiHouseModel base (sem degradação)
+      output: trajectória SoC E[h,0..T]
+      binarios: 2×T por casa (mutex carga/descarga + mutex import/export)
+    stage_2:
+      modelo: MultiHouseModel base + penalidade linear time-varying
+      como: λ_t = lambda_by_bin[k_t] onde k_t = bin activo dado SoC do stage 1
+      output: dispatch final com degradação
+      nota: λ_t é float Python (não Var Pyomo) → objectivo permanece linear, sem novos binários
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ☀️  ESTRATÉGIAS DE PARTILHA DE PV (alpha)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+estrategias_pv_sharing:
+  modulo: src/batEnv/io/pv_sharing.py
+  campo_config: sharing.mode
+
+  fixed_alpha:
+    descricao: alpha[h] constante no tempo, definido explicitamente no YAML
+    exemplo: igual → alpha[h] = 1/8 = 0.125 para todas as 8 casas
+
+  consumption_instant:
+    descricao: alpha[h,t] = Load[h,t] / Σ_h Load[h,t]  (proporcional ao consumo instantâneo)
+    nota: se Σ Load = 0, faz equal split para evitar divisão por zero
+
+  consumption_mean:
+    descricao: alpha[h] = mean(Load[h]) / Σ_h mean(Load[h])  (constante, baseado em média histórica)
+
+  optimal:
+    descricao: PV[h,t] é Var no MILP — minimização global escolhe alocação óptima
+    nota: limite superior teórico de desempenho; benchmarka as heurísticas acima
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🗂️  CENÁRIOS — Building 8 (Edifício com 8 Apartamentos)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+cenarios:
+  base_comum: cases/scenarios/building8/_b8_base.yaml
+  nota: >
+    Todos os cenários herdam do base via 'extends: _b8_base.yaml'.
+    O base define: 8 CSVs de PV, 8 CSVs de carga, tarifas flat, e parâmetros de bateria idênticos para todos.
+
+  # ── Grupo A: Alpha Fixo com Exportação ───────────────────────────────────
+  A_alpha_fixo_com_exportacao:
+    cenarios: [pv01, pv02, pv03, pv04]
+    grid_allow_export: true
+    degradacao: false
+    descricao: 4 heurísticas de partilha de PV com exportação livre para a rede
+    pv01_equal_export:
+      sharing_mode: fixed_alpha
+      alpha: igual (1/8 cada casa)
+      resultado_1ano: { custo_EUR: 1301.0, SSR_pct: 55.9 }
+    pv02_weighted_export:
+      sharing_mode: fixed_alpha
+      alpha: ponderado (por PV gerado por painel)
+      resultado_1ano: { custo_EUR: 1397.3, SSR_pct: 52.4 }
+    pv03_consumption_instant_export:
+      sharing_mode: consumption_instant
+      alpha: proporcional ao consumo instantâneo
+      resultado_1ano: { custo_EUR: 1149.1, SSR_pct: 61.4 }
+    pv04_consumption_mean_export:
+      sharing_mode: consumption_mean
+      alpha: proporcional à média histórica de consumo
+      resultado_1ano: { custo_EUR: 1169.2, SSR_pct: 60.7 }
+
+  # ── Grupo B: Alpha Fixo sem Exportação ───────────────────────────────────
+  B_alpha_fixo_sem_exportacao:
+    cenarios: [pv05, pv06, pv07, pv08]
+    grid_allow_export: false
+    degradacao: false
+    descricao: Mesmas 4 heurísticas mas sem exportação → mais curtailment, custo mais alto
+    pv05_equal_no_export:         { resultado_1ano: { custo_EUR: 1584.0, SSR_pct: 55.9 } }
+    pv06_weighted_no_export:      { resultado_1ano: { custo_EUR: 1710.1, SSR_pct: 52.4 } }
+    pv07_consumption_instant_no_export: { resultado_1ano: { custo_EUR: 1387.8, SSR_pct: 61.4 } }
+    pv08_consumption_mean_no_export:    { resultado_1ano: { custo_EUR: 1410.9, SSR_pct: 60.7 } }
+
+  # ── Grupo C: Alpha Óptimo (upper bound) ──────────────────────────────────
+  C_alpha_optimo:
+    cenarios: [pv09]
+    grid_allow_export: true
+    degradacao: false
+    descricao: >
+      O MILP decide a alocação de PV — limite superior de desempenho.
+      Qualquer heurística de partilha terá custo ≥ pv09.
+    pv09_optimal_export:
+      sharing_mode: optimal
+      resultado_1ano: { custo_EUR: 1121.2, SSR_pct: 62.4 }
+      nota: MELHOR RESULTADO entre todos os cenários sem degradação
+
+  # ── Grupo D: Baselines (sem bateria / sem partilha) ───────────────────────
+  D_baselines:
+    cenarios: [pv10, pv11, pv12]
+    descricao: Pontos de referência para quantificar o valor da bateria e da partilha
+    pv10_no_battery_export:
+      descricao: PV partilhado mas sem bateria (E_max=0 para todos)
+      resultado_1ano: { custo_EUR: 2034.9, SSR_pct: 28.8 }
+    pv11_no_sharing_export:
+      descricao: Bateria presente mas PV não é partilhado (cada casa usa só o seu próprio PV)
+      resultado_1ano: { custo_EUR: 1448.2, SSR_pct: 50.6 }
+    pv12_nothing_export:
+      descricao: Sem bateria E sem partilha de PV (pior caso absoluto)
+      resultado_1ano: { custo_EUR: 2133.2, SSR_pct: 25.3 }
+
+  # ── Grupo E: Degradação Linear ────────────────────────────────────────────
+  E_degradacao_linear:
+    cenarios: [pv13, pv14]
+    grid_allow_export: true
+    modelo: MultiHouseModelDegradation
+    lambda_deg: 0.033  # €/kWh
+    pv13_optimal_with_degradation_export:
+      sharing_mode: optimal
+      resultado_1ano: { custo_EUR: 1121.3, SSR_pct: 62.4 }
+      nota: >
+        Praticamente idêntico a pv09 (sem degradação) em custo energético —
+        a penalidade λ=0.033 é moderada face às tarifas actuais.
+    pv14_weighted_with_degradation_export:
+      sharing_mode: fixed_alpha (weighted)
+      resultado_1ano: { custo_EUR: 1397.3, SSR_pct: 52.4 }
+
+  # ── Grupo F: Degradação PWL ───────────────────────────────────────────────
+  F_degradacao_pwl:
+    cenarios: [pv15, pv16, pv17, pv18, pv19]
+    modelo: MultiHouseModelDegradationPWL
+    horizonte_maximo: 6 meses  # 1 ano não foi executado (custo computacional)
+    dt_hours: 1.0              # resolução horária (4× menos binários que 15min)
+    soc_breakpoints: [0.0, 0.2, 0.8, 1.0]
+    lambda_by_bin:   [0.08, 0.03, 0.06]  # €/kWh — maior degradação nas extremidades
+    pv15_equal_pwl_export:             { sharing_mode: equal }
+    pv16_weighted_pwl_export:          { sharing_mode: weighted }
+    pv17_consumption_instant_pwl_export: { sharing_mode: consumption_instant }
+    pv18_consumption_mean_pwl_export:  { sharing_mode: consumption_mean }
+    pv19_optimal_pwl_export:           { sharing_mode: optimal }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 📊 RESULTADOS PRINCIPAIS (Horizonte 1 Ano, resolução 15min)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+resultados_1_ano:
+  nota: Calculados sobre 35 040 timesteps (35040 × 0.25h = 8760h = 1 ano)
+  baseline_pior_caso:
+    cenario: pv12 (sem bateria, sem partilha)
+    custo_EUR: 2133.2
+    SSR_pct: 25.3
+
+  ranking_por_custo:
+    - posicao: 1
+      cenario: pv09_optimal_export
+      custo_EUR: 1121.2
+      SSR_pct: 62.4
+      poupanca_vs_pv12_pct: 47.4
+    - posicao: 2
+      cenario: pv13_optimal_with_degradation
+      custo_EUR: 1121.3
+      SSR_pct: 62.4
+    - posicao: 3
+      cenario: pv03_consumption_instant
+      custo_EUR: 1149.1
+      SSR_pct: 61.4
+    - posicao: 4
+      cenario: pv04_consumption_mean
+      custo_EUR: 1169.2
+      SSR_pct: 60.7
+    - posicao: 5
+      cenario: pv01_equal
+      custo_EUR: 1301.0
+      SSR_pct: 55.9
+    - posicao: 6
+      cenario: pv02_weighted
+      custo_EUR: 1397.3
+      SSR_pct: 52.4
+    - posicao: 7
+      cenario: pv14_weighted_degradation
+      custo_EUR: 1397.3
+      SSR_pct: 52.4
+    - posicao: 8
+      cenario: pv11_no_sharing
+      custo_EUR: 1448.2
+      SSR_pct: 50.6
+    - posicao: 9
+      cenario: pv07_consumption_instant_no_export
+      custo_EUR: 1387.8
+      SSR_pct: 61.4
+    - posicao: 10
+      cenario: pv08_consumption_mean_no_export
+      custo_EUR: 1410.9
+      SSR_pct: 60.7
+    - posicao: 11
+      cenario: pv05_equal_no_export
+      custo_EUR: 1584.0
+      SSR_pct: 55.9
+    - posicao: 12
+      cenario: pv06_weighted_no_export
+      custo_EUR: 1710.1
+      SSR_pct: 52.4
+    - posicao: 13
+      cenario: pv10_no_battery
+      custo_EUR: 2034.9
+      SSR_pct: 28.8
+    - posicao: 14
+      cenario: pv12_nothing  # pior caso
+      custo_EUR: 2133.2
+      SSR_pct: 25.3
+
+  conclusoes:
+    - A exportação vale ~22% de poupança: pv01 (1301€) vs pv05 (1584€) — mesma partilha, sem exportação
+    - A bateria vale ~36% de poupança: pv09 (1121€) vs pv10-sem-bateria (2035€)
+    - A partilha óptima (pv09) supera a melhor heurística (pv03) em ~2.4%
+    - A estratégia consumption_instant é a melhor heurística — aproveita PV quando há consumo
+    - Degradação linear λ=0.033 não altera materialmente o custo (pv09 vs pv13 diferem 0.1€)
+    - Partilha ponderada (pv02) é a PIOR heurística com exportação — pior até que igual (pv01)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔧 PARÂMETROS BASE (valores reais de _b8_base.yaml)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+parametros_base:
+  edificio: Building 8
+  apartamentos: [Apt1, Apt2, Apt3, Apt4, Apt5, Apt6, Apt7, Apt8]
+
+  bateria:  # Igual para todos os apartamentos (definida como âncora YAML &bat)
+    E_init_kWh:   5.0    # SoC inicial (50% de 10 kWh)
+    E_min_kWh:    1.0    # SoC mínimo (10%)
+    E_max_kWh:    10.0   # Capacidade útil
+    P_ch_max_kW:  3.3    # Potência máx carga
+    P_dis_max_kW: 3.3    # Potência máx descarga
+    eta_ch:       0.95   # Eficiência de carga (95%)
+    eta_dis:      0.95   # Eficiência de descarga (95%)
+    P_grid_max_kW: 13.8  # Limite de ligação à rede por apartamento
+
+  tarifa_flat:  # Definida em _b8_base.yaml (pode ser sobreposta por cenário)
+    grid_buy_eur_per_kwh:  0.27  # Tarifa de compra da rede
+    grid_sell_eur_per_kwh: 0.06  # Tarifa de venda (feed-in)
+
+  pv:
+    ficheiros: [data/pv_gen_01.csv … data/pv_gen_08.csv]
+    nota: 8 geradores PV (um por painel/fracção), somados para PV_total em modo óptimo
+    total_anual_estimado_kWh: 12572.97  # (do meta.yaml do pv09 1year)
+
+  carga:
+    ficheiros: [data/load_cons_09.csv (Apt1), data/load_cons_02.csv (Apt2), …]
+    nota: Apt1 usa load_cons_09 (não load_cons_01) — numeração histórica do edifício
+
+  resolucao_temporal:
+    dt_nativo_h: 0.25     # 15 minutos (todos os CSVs)
+    dt_pwl_h:    1.0      # 1 hora (cenários PWL — resampling automático em run_case.py)
+
+  solver:
+    nome: HiGHS (appsi_highs via highspy, fallback: highs via CLI)
+    mip_rel_gap: 0.005    # 0.5%
+    time_limit_full_horizon_s: 14400.0   # 4 horas
+    time_limit_pwl_s:           3600.0   # 1 hora (por casa, cenários PWL)
+    time_limit_alfa_deg_s:      1800.0   # 30 minutos
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 🔁 SWEEPS CONFIGURADOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+sweeps:
+
+  full_horizon_sweep:
+    ficheiro: cases/runsets/runset_full_horizon_sweep.yaml
+    casos_base: pv01..pv14  # 14 cenários (excl. PWL)
+    entradas:
+      - suffix: 1month  | horizon: 2880  | dt: 0.25h | total_h:  720
+      - suffix: 3months | horizon: 8640  | dt: 0.25h | total_h: 2160
+      - suffix: 6months | horizon: 17280 | dt: 0.25h | total_h: 4320
+      - suffix: 1year   | horizon: 35040 | dt: 0.25h | total_h: 8760
+    total_runs: 56  # 14 casos × 4 horizontes
+
+  pwl_sweep:
+    ficheiro: cases/runsets/runset_pwl_sweep.yaml
+    casos_base: pv15..pv19  # 5 cenários PWL
+    entradas:
+      - suffix: 1month  | horizon: 720  | dt: 1.0h
+      - suffix: 3months | horizon: 2160 | dt: 1.0h
+      - suffix: 6months | horizon: 4320 | dt: 1.0h
+    nota: 1 ano não incluído — custo computacional elevado mesmo com dt=1h e per-house decomposition
+    total_runs: 15  # 5 casos × 3 horizontes
+
+  alfa_deg_sweep:
+    ficheiro: cases/runsets/runset_alfa_deg_sweep.yaml
+    casos_base: [pv01, pv02, pv03, pv04, pv09]
+    entradas:
+      - suffix: no_deg   | override: battery_degradation_eur_per_kwh=0.0
+      - suffix: with_deg | override: battery_degradation_eur_per_kwh=0.033
+    horizonte_padrao: 2688 timesteps (28 dias a 15min)
+    total_runs: 10  # 5 casos × 2 variantes

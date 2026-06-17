@@ -70,10 +70,19 @@ def compute_community_extra_metrics(df_comm: pd.DataFrame, dt_hours: float) -> D
         "E_curt_kWh_COMM": e_curt,
     }
 
+    e_ch = _E("P_ch")
+
     if e_pv > 0:
         out["Curt_frac_of_PV_COMM"] = float(e_curt / e_pv)
         sc = (e_pv - e_curt - e_exp) / e_pv
         out["Self_Consumption_COMM"] = float(max(0.0, min(1.0, sc)))
+
+    e_surplus = e_ch + e_exp + e_curt
+    if e_surplus > 0:
+        out["PV_surplus_kWh_COMM"] = float(e_surplus)
+        out["Surplus_captured_frac_COMM"] = float(
+            max(0.0, min(1.0, e_ch / e_surplus))
+        )
 
     if e_load > 0:
         ss = (e_load - e_imp) / e_load

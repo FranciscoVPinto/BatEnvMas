@@ -1,17 +1,27 @@
 case: b8_pv07_consumption_instant_no_export__6months
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv07_consumption_instant_no_export__6months.yaml
-created_at: '2026-05-08T16:54:08.821106'
+created_at: '2026-06-08T23:10:38.308691'
 dt_hours: 0.25
 horizon: 17280
 start: 2025-01-01 00:00
 allow_export: false
 cyclic_soc: true
 alpha_mode: fixed
-battery_degradation_eur_per_kwh: 0.0
+battery_degradation_eur_per_kwh: 0.056939328591552756
+battery_degradation_eur_per_kwh_by_house:
+  Apt1: 0.056933843976656344
+  Apt2: 0.056933843976656344
+  Apt3: 0.056942619360490596
+  Apt4: 0.056933843976656344
+  Apt5: 0.056942619360490596
+  Apt6: 0.056942619360490596
+  Apt7: 0.056942619360490596
+  Apt8: 0.056942619360490596
 battery_degradation_pwl: null
+rolling_horizon: null
 sharing_enabled: false
-model_kind: house_indexed_unified
+model_kind: house_indexed_degradation
 warnings: []
 pv_info:
   warnings: []
@@ -27,7 +37,7 @@ pv_info:
     fallback_mode: consumption_instant
     zero_denom: equal_split
     denom_min: 0.153260697923374
-    denom_max: 6.294845117369142
+    denom_max: 6.294845117369143
 solver_used: highs
 termination_condition: optimal
 debug:

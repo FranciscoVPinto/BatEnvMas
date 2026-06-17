@@ -1,0 +1,11 @@
+extends: _b8_base.yaml
+case: b8_pv20_optimal_no_export
+
+# Análogo ao pv09 (optimal+export) mas sem injeção na rede.
+# Permite avaliar o impacto do direito de export na política ótima de partilha.
+
+grid:
+  allow_export: false
+
+sharing:
+  mode: optimal

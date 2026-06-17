@@ -9,7 +9,9 @@ from .multi_house import MultiHouseModel
 
 
 _DEFAULT_SOC_BREAKPOINTS: List[float] = [0.0, 0.2, 0.8, 1.0]
-_DEFAULT_LAMBDA_BY_BIN: List[float] = [0.08, 0.03, 0.06]
+# Derivado da curva de Wohler (battery_economics.compute_pwl_lambda_by_bin) para as
+# baterias do Edificio 8 (~650 EUR/kWh). Perfil monotono: descarga profunda = mais cara.
+_DEFAULT_LAMBDA_BY_BIN: List[float] = [0.0554, 0.0413, 0.0185]
 
 
 def _validate_pwl_params(
@@ -61,7 +63,8 @@ class MultiHouseModelDegradationPWL:
     soc_breakpoints : list[float]
         K+1 values in [0, 1], strictly increasing. Defaults: [0.0, 0.2, 0.8, 1.0].
     lambda_by_bin : list[float]
-        K degradation costs (EUR/kWh), one per bin. Defaults: [0.08, 0.03, 0.06].
+        K degradation costs (EUR/kWh), one per bin. Defaults (Wohler-derived):
+        [0.0554, 0.0413, 0.0185].
     lambda_by_bin_per_house : dict[str, list[float]], optional
         Per-house override for lambda_by_bin.
     """

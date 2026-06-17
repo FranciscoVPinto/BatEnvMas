@@ -1,17 +1,27 @@
 case: b8_pv08_consumption_mean_no_export__1month
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv08_consumption_mean_no_export__1month.yaml
-created_at: '2026-05-08T17:54:26.995691'
+created_at: '2026-06-08T23:52:19.071151'
 dt_hours: 0.25
 horizon: 2880
 start: 2025-01-01 00:00
 allow_export: false
 cyclic_soc: true
 alpha_mode: fixed
-battery_degradation_eur_per_kwh: 0.0
+battery_degradation_eur_per_kwh: 0.056939328591552756
+battery_degradation_eur_per_kwh_by_house:
+  Apt1: 0.056933843976656344
+  Apt2: 0.056933843976656344
+  Apt3: 0.056942619360490596
+  Apt4: 0.056933843976656344
+  Apt5: 0.056942619360490596
+  Apt6: 0.056942619360490596
+  Apt7: 0.056942619360490596
+  Apt8: 0.056942619360490596
 battery_degradation_pwl: null
+rolling_horizon: null
 sharing_enabled: false
-model_kind: house_indexed_unified
+model_kind: house_indexed_degradation
 warnings: []
 pv_info:
   warnings: []
@@ -26,15 +36,15 @@ pv_info:
   fallback_details:
     fallback_mode: consumption_mean
     means:
-      Apt1: 0.06315747492829518
-      Apt2: 0.35586315733015683
-      Apt3: 0.17561634623376032
-      Apt4: 0.08849105573857617
-      Apt5: 0.22307372557523064
-      Apt6: 0.4101683105493227
-      Apt7: 0.1345627990988699
-      Apt8: 0.38986405075343644
-    mean_sum: 1.840796920207648
+      Apt1: 0.35586315733015683
+      Apt2: 0.17561634623376032
+      Apt3: 0.08849105573857617
+      Apt4: 0.22307372557523064
+      Apt5: 0.4101683105493227
+      Apt6: 0.1345627990988699
+      Apt7: 0.38986405075343644
+      Apt8: 0.06315747492829518
+    mean_sum: 1.8407969202076484
 solver_used: highs
 termination_condition: optimal
 debug:

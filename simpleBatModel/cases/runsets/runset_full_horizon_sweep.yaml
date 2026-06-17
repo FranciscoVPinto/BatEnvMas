@@ -7,6 +7,9 @@ cases_glob:
   - "b8_pv12*.yaml"
   - "b8_pv13*.yaml"
   - "b8_pv14*.yaml"
+  - "b8_pv20*.yaml"
+# Nota: pv15–pv19 (PWL) correm via runset_pwl_sweep.yaml (requerem dt_hours: 0.25)
+# e escrevem igualmente em results/full_horizon_sweep/
 
 sweep:
   - suffix: 1month

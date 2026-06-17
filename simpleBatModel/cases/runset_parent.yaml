@@ -2,11 +2,15 @@ runset:
   - runsets/runset_alfa_deg_sweep.yaml
   - runsets/runset_full_horizon_sweep.yaml
   - runsets/runset_pwl_sweep.yaml
+  - runsets/runset_pwl_validation.yaml
 
+# Bateria completa de sweeps ativa. (pwl_validation fica off — era so o caso de
+# validacao do rolling horizon; pôr a true para repetir essa comparacao.)
 enabled:
   alfa_deg_sweep: true
   full_horizon_sweep: true
   pwl_sweep: true
+  pwl_validation: false
 
 defaults:
   outputs_dir: results

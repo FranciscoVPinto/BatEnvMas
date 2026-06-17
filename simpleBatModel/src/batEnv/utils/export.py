@@ -6,25 +6,22 @@ import pandas as pd
 import pyomo.environ as pyo
 
 
-# Pyomo can raise several different errors when a variable is uninitialized,
-# missing from the index, or has no value yet. Catch the known set explicitly
-# so genuinely unexpected errors still surface.
 _PYOMO_VAL_ERRORS = (ValueError, AttributeError, KeyError)
 
 
 def _val(x) -> float:
-    """Best-effort extraction of a Pyomo value; returns 0.0 if unavailable."""
+    """Extrai valor de uma variavel/expressao Pyomo; devolve 0.0 se indisponivel."""
     import logging
-    _pyomo_log = logging.getLogger("pyomo.core")
-    _old_level = _pyomo_log.level
-    _pyomo_log.setLevel(logging.CRITICAL)
+    _log = logging.getLogger("pyomo.core")
+    _old = _log.level
+    _log.setLevel(logging.CRITICAL)
     try:
         v = pyo.value(x, exception=False)
         return float(v) if v is not None else 0.0
     except _PYOMO_VAL_ERRORS:
         return 0.0
     finally:
-        _pyomo_log.setLevel(_old_level)
+        _log.setLevel(_old)
 
 
 def _extract_house_dataframe(m, house_id: str) -> pd.DataFrame:
@@ -36,32 +33,37 @@ def _extract_house_dataframe(m, house_id: str) -> pd.DataFrame:
         except KeyError:
             E.append(0.0)
 
-    return pd.DataFrame({
-        "t": [int(t) for t in T],
-        "Load": [_val(m.Load[house_id, t]) for t in T],
-        "PV": [_val(m.PV[house_id, t]) for t in T],
-        "P_imp": [_val(m.P_imp[house_id, t]) for t in T],
-        "P_exp": [_val(m.P_exp[house_id, t]) for t in T],
-        "P_ch": [_val(m.P_ch[house_id, t]) for t in T],
-        "P_dis": [_val(m.P_dis[house_id, t]) for t in T],
+    df = pd.DataFrame({
+        "t":      [int(t) for t in T],
+        "Load":   [_val(m.Load[house_id, t])   for t in T],
+        "PV":     [_val(m.PV[house_id, t])     for t in T],
+        "P_imp":  [_val(m.P_imp[house_id, t])  for t in T],
+        "P_exp":  [_val(m.P_exp[house_id, t])  for t in T],
+        "P_ch":   [_val(m.P_ch[house_id, t])   for t in T],
+        "P_dis":  [_val(m.P_dis[house_id, t])  for t in T],
         "P_curt": [_val(m.P_curt[house_id, t]) for t in T],
-        "E": E,
+        "E":      E,
         "c_grid": [_val(m.c_grid[house_id, t]) for t in T],
         "c_sell": [_val(m.c_sell[house_id, t]) for t in T],
     })
 
+    # Fluxo exacto do PV -- disponivel quando o modelo tem a restricao no_grid_charging.
+    # Invariante: P_pv_to_load + P_pv_to_bat + P_pv_to_exp + P_curt = PV
+    if hasattr(m, "P_pv_to_load"):
+        df["P_pv_to_load"] = [max(0.0, _val(m.P_pv_to_load[house_id, t])) for t in T]
+        df["P_pv_to_bat"]  = [_val(m.P_pv_to_bat[house_id, t])            for t in T]
+        df["P_pv_to_exp"]  = [_val(m.P_pv_to_exp[house_id, t])            for t in T]
+
+    return df
+
 
 def multi_model_to_dataframes(m) -> Dict[str, pd.DataFrame]:
-    """Export the unified house-indexed model as {house_id: dataframe}."""
+    """Exporta o modelo unificado como {house_id: dataframe}."""
     return {str(h): _extract_house_dataframe(m, h) for h in list(m.H)}
 
 
-def model_to_dataframe(m, house_id: str | None = None) -> pd.DataFrame:
-    """
-    Backward-compatible single-house export.
-
-    When `house_id` is omitted, the first house in m.H is used.
-    """
+def model_to_dataframe(m, house_id=None) -> pd.DataFrame:
+    """Compatibilidade: exporta uma unica casa (primeira se house_id=None)."""
     houses = list(getattr(m, "H", []))
     if not houses:
         raise ValueError("Expected a unified house-indexed model with set H.")
@@ -71,18 +73,8 @@ def model_to_dataframe(m, house_id: str | None = None) -> pd.DataFrame:
     return _extract_house_dataframe(m, chosen)
 
 
-def extract_pwl_metrics_dataframe(m) -> "pd.DataFrame":
-    """
-    Extract per-house scalar metrics from a solved PWL degradation model.
-
-    Returns a DataFrame with columns:
-        house, pwl_degradation_cost_EUR, battery_throughput_kWh,
-        bin_hours_0, bin_hours_1, ..., bin_hours_{K-1}
-
-    Returns an empty DataFrame if the model has no PWL attributes.
-    """
-    import pandas as pd  # local import to avoid circular dependency
-
+def extract_pwl_metrics_dataframe(m) -> pd.DataFrame:
+    """Extrai metricas PWL por casa de um modelo de degradacao PWL resolvido."""
     if not (hasattr(m, "K") and hasattr(m, "pwl_degradation_cost_EUR")):
         return pd.DataFrame()
 

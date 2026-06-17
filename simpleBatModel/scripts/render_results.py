@@ -34,6 +34,7 @@ from batEnv.plotting import (  # noqa: E402
     plot_compare_metrics,
     plot_compare_timeseries,
     plot_house_per_case,
+    plot_member_summary,
     plot_scatter_cost_vs_metric,
     plot_summary_dashboard,
     plot_sweep_curve,
@@ -139,57 +140,68 @@ def make_per_case_plots(
     include_community: bool = False,
     case_yaml_path: Optional[Path] = None,
 ) -> None:
-    plots_dir = per_case_root / "houses"
-    plots_dir.mkdir(parents=True, exist_ok=True)
-
     house_dfs = read_house_csvs(case_out_dir)
     if not house_dfs:
         logger.warning("%s: no results_house_*.csv in %s", case_name, case_out_dir)
         return
 
-    if include_community:
-        df_comm = aggregate_community_timeseries(house_dfs)
-        if not df_comm.empty:
-            house_dfs = dict(house_dfs)
-            house_dfs[COMMUNITY_ID] = df_comm
-            comm_csv = per_case_root / "community_timeseries.csv"
-            df_comm.to_csv(comm_csv, index=False)
+    df_comm = aggregate_community_timeseries(house_dfs)
+    if not df_comm.empty:
+        house_dfs = dict(house_dfs)
+        house_dfs[COMMUNITY_ID] = df_comm
+        df_comm.to_csv(per_case_root / "community_timeseries.csv", index=False)
 
     case_cfg: dict = {}
     if case_yaml_path is not None:
         case_cfg = load_case_yaml(case_yaml_path)
 
-    for house_id, df in house_dfs.items():
-        out_png = plots_dir / f"plot_house_{house_id}.png"
+    meta_local = _read_meta(case_out_dir)
+    pwl_meta   = meta_local.get("battery_degradation_pwl") or {}
+    soc_bkpts  = pwl_meta.get("soc_breakpoints") if isinstance(pwl_meta, dict) else None
 
-        # Community "house" typically has no battery config in YAML
-        bat = (case_cfg.get("houses", {}).get(house_id, {}) or {}).get("battery", {}) or {}
-        E_min = bat.get("E_min", None)
-        E_max = bat.get("E_max", None)
+    # Modo de partilha de PV (para decidir se o alpha_allocation é informativo)
+    sharing_mode = str((case_cfg.get("sharing") or {}).get("mode", "fixed_alpha"))
+    alpha_varies = sharing_mode in ("consumption_instant", "consumption_mean")
 
-        # Read PWL soc_breakpoints from meta (if available) for bin zone shading.
-        meta_local = _read_meta(case_out_dir)
-        pwl_meta = meta_local.get("battery_degradation_pwl") or {}
-        soc_bkpts = pwl_meta.get("soc_breakpoints", None) if isinstance(pwl_meta, dict) else None
+    per_case_root.mkdir(parents=True, exist_ok=True)
 
+    # --- Série temporal da comunidade (agregado) ---
+    # Só plotamos o agregado — os plots individuais de cada apartamento são
+    # quase idênticos entre si e o member_summary já cobre os KPIs por membro.
+    if COMMUNITY_ID in house_dfs:
         plot_house_per_case(
-            df,
-            out_png,
-            title=f"{case_name} | {house_id}",
+            house_dfs[COMMUNITY_ID],
+            per_case_root / "timeseries_community.png",
+            title=f"{case_name} | Comunidade",
             dt_hours=dt_hours,
-            E_min=float(E_min) if E_min is not None else None,
-            E_max=float(E_max) if E_max is not None else None,
             pwl_soc_breakpoints=soc_bkpts,
         )
 
-    # PV allocation alpha(t) — visualises how the strategy distributed the
-    # shared PV pool across houses at each timestep.
-    plot_alpha_allocation(
-        house_dfs,
-        per_case_root / "alpha_allocation.png",
-        title=f"{case_name} | PV allocation alpha(t)",
-        dt_hours=dt_hours,
-    )
+    # --- Resumo por membro: excedente %, custo, autoconsumo ---
+    metrics_rows = {}
+    for house_id, df in house_dfs.items():
+        m = compute_summary_metrics(df, dt_hours=dt_hours)
+        if house_id == COMMUNITY_ID:
+            m.update(compute_community_extra_metrics(df, dt_hours=dt_hours))
+            m.setdefault("Self_Consumption", m.get("Self_Consumption_COMM"))
+            m.setdefault("E_exp_kWh", m.get("E_exp_kWh_COMM"))
+        metrics_rows[house_id] = m
+
+    if metrics_rows:
+        plot_member_summary(
+            pd.DataFrame(metrics_rows).T,
+            per_case_root / "member_summary.png",
+            title=f"{case_name} — Análise por membro",
+        )
+
+    # --- Alocação de PV alpha(t) ---
+    # Só gerado quando o alpha varia no tempo (consumption_instant/mean).
+    # Com equal/fixed, as bandas são planas e o gráfico não acrescenta informação.
+    if alpha_varies:
+        plot_alpha_allocation(
+            house_dfs, per_case_root / "alpha_allocation.png",
+            title=f"{case_name} | Alocação PV alpha(t)", dt_hours=dt_hours,
+        )
 
     logger.info("Per-case plots saved: %s", per_case_root)
 
@@ -286,116 +298,43 @@ def make_comparisons(
                         row.update(fairness)
                         break
 
-    if metrics_rows:
-        metrics_all = pd.DataFrame(metrics_rows).set_index(["case", "house"]).sort_index()
-        metrics_csv = comp_root / "metrics_all.csv"
-        metrics_all.to_csv(metrics_csv)
-        logger.info("Metrics table: %s", metrics_csv)
+    if not metrics_rows:
+        logger.warning("No metrics could be computed (no CSVs found).")
+        return
 
-        # One-page summary dashboard at community level (SS/SC/Cost/Fairness)
-        if any(metrics_all.index.get_level_values("house") == COMMUNITY_ID):
-            dash_path = comp_root / "summary_dashboard.png"
-            plot_summary_dashboard(
-                metrics_all, dash_path,
-                title=f"{plotset_name} — community summary (sorted by total cost)",
-                sort_by="Cost_total_EUR",
-            )
-            logger.info("Summary dashboard: %s", dash_path)
+    metrics_all = pd.DataFrame(metrics_rows).set_index(["case", "house"]).sort_index()
+    metrics_all.to_csv(comp_root / "metrics_all.csv")
+    logger.info("Metrics table: %s", comp_root / 'metrics_all.csv')
 
-            # Sweep curves (only meaningful when at least one case carries
-            # a `__<suffix>`). Always emitted; the function returns a no-op
-            # if there's nothing to compare.
+    has_community = any(metrics_all.index.get_level_values("house") == COMMUNITY_ID)
+
+    # --- Dashboard comunitário entre casos ---
+    if has_community and len(cases_info) >= 2:
+        plot_summary_dashboard(
+            metrics_all, comp_root / "summary_dashboard.png",
+            title=f"{plotset_name} — comparação entre cenários",
+            sort_by="Cost_total_EUR",
+        )
+        logger.info("Summary dashboard: %s", comp_root / 'summary_dashboard.png')
+
+        # Sweep curves — só geradas se existirem casos com sufixo __<variante>.
+        # Evita criar uma pasta sweep/ vazia em experimentos sem sweep.
+        case_names_all = [cn for cn, _, _ in cases_info]
+        has_sweep = any("__" in cn for cn in case_names_all)
+        if has_sweep:
             sweep_root = comp_root / "sweep"
             sweep_root.mkdir(parents=True, exist_ok=True)
             for metric, hib in [
-                ("Cost_total_EUR",          False),
-                ("Self_Sufficiency_COMM",   True),
-                ("Self_Consumption_COMM",   True),
-                ("Cost_total_EUR_CV_house", False),
+                ("Cost_total_EUR",        False),
+                ("Self_Sufficiency_COMM", True),
+                ("Self_Consumption_COMM", True),
             ]:
                 plot_sweep_curve(
                     metrics_all, sweep_root / f"sweep_{metric}.png",
                     metric=metric,
-                    title=f"{plotset_name} — sweep curve: {metric}",
-                    house=COMMUNITY_ID,
-                    higher_is_better=hib,
+                    title=f"{plotset_name} — {metric}",
+                    house=COMMUNITY_ID, higher_is_better=hib,
                 )
-            logger.info("Sweep curves: %s", sweep_root)
-
-            # Scatter plots: trade-off analysis between cost and key metrics.
-            scatter_root = comp_root / "scatter"
-            scatter_root.mkdir(parents=True, exist_ok=True)
-            _scatter_pairs = [
-                ("Cost_total_EUR", "Self_Sufficiency_COMM",
-                 "Total cost (EUR)", "Self-sufficiency (community)"),
-                ("Cost_total_EUR", "Self_Consumption_COMM",
-                 "Total cost (EUR)", "Self-consumption (community)"),
-                ("Cost_total_EUR", "Cost_total_EUR_Gini_house",
-                 "Total cost (EUR)", "Cost Gini (equity across houses)"),
-                ("Cost_total_EUR", "pwl_degradation_cost_EUR",
-                 "Total cost (EUR)", "PWL degradation cost (EUR)"),
-            ]
-            for x_m, y_m, x_lbl, y_lbl in _scatter_pairs:
-                plot_scatter_cost_vs_metric(
-                    metrics_all,
-                    scatter_root / f"scatter_{x_m}_vs_{y_m}.png",
-                    x_metric=x_m, y_metric=y_m,
-                    x_label=x_lbl, y_label=y_lbl,
-                    title=f"{plotset_name} — {y_lbl} vs {x_lbl}",
-                )
-            logger.info("Scatter plots: %s", scatter_root)
-    else:
-        metrics_all = pd.DataFrame()
-        logger.warning("No metrics could be computed (no CSVs found).")
-
-    # Per-house timeseries comparisons (need >=2 cases per house to be meaningful)
-    ts_root = comp_root / "timeseries"
-    ts_root.mkdir(parents=True, exist_ok=True)
-    for house_id in houses_union:
-        dfs_for_house = {
-            cn: case_house_dfs.get(cn, {}).get(house_id)
-            for cn, _, _ in cases_info
-        }
-        dfs_for_house = {k: v for k, v in dfs_for_house.items() if v is not None}
-        if len(dfs_for_house) < 2:
-            continue
-
-        for var in _COMPARE_VARS:
-            out_png = ts_root / f"compare_{var}_house_{house_id}.png"
-            plot_compare_timeseries(
-                dfs_for_house,
-                variable=var,
-                outpath=out_png,
-                title=f"{plotset_name} | {var} | {house_id}",
-                dt_hours_by_case=dt_by_case,
-            )
-        logger.info("Comparisons: timeseries for %s", house_id)
-
-    # Per-house metric bars
-    if not metrics_all.empty:
-        bar_root = comp_root / "metrics"
-        bar_root.mkdir(parents=True, exist_ok=True)
-
-        metric_list = [m for m in _PREFERRED_BAR_METRICS if m in metrics_all.columns]
-
-        for house_id in houses_union:
-            try:
-                sub = metrics_all.xs(house_id, level="house")
-            except KeyError:
-                continue
-            if sub.shape[0] < 2:
-                continue
-
-            for metric in metric_list:
-                out_png = bar_root / f"bar_{metric}_house_{house_id}.png"
-                plot_compare_metrics(
-                    sub,
-                    metric=metric,
-                    outpath=out_png,
-                    title=f"{plotset_name} | {metric} | {house_id}",
-                )
-
-        logger.info("Comparisons: metric bars saved to %s", bar_root)
 
     logger.info("Comparisons root: %s", comp_root)
 

@@ -1,3 +1,6 @@
+time:
+  dt_hours: 0.25
+  start: 2025-01-01 00:00
 data:
   pv_total:
   - data/pv_gen_01.csv
@@ -9,7 +12,7 @@ data:
   - data/pv_gen_07.csv
   - data/pv_gen_08.csv
   loads:
-    Apt1: data/load_cons_09.csv
+    Apt1: data/load_cons_01.csv
     Apt2: data/load_cons_02.csv
     Apt3: data/load_cons_03.csv
     Apt4: data/load_cons_04.csv
@@ -18,8 +21,18 @@ data:
     Apt7: data/load_cons_07.csv
     Apt8: data/load_cons_08.csv
 tariffs:
-  grid_buy: 0.27
+  model: bi_horaria
+  grid_buy:
+    peak: 0.24
+    offpeak: 0.14
+    peak_periods:
+    - - 08:00
+      - '22:00'
   grid_sell: 0.06
+grid:
+  allow_export: true
+model:
+  cyclic_soc: true
 houses:
   Apt1:
     battery:
@@ -30,7 +43,11 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 2308
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
   Apt2:
     battery:
       E_init: 0
@@ -40,7 +57,11 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 2308
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
   Apt3:
     battery:
       E_init: 0
@@ -50,7 +71,11 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 1560
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
   Apt4:
     battery:
       E_init: 0
@@ -60,7 +85,11 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 2308
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
   Apt5:
     battery:
       E_init: 0
@@ -70,7 +99,11 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 3120
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
   Apt6:
     battery:
       E_init: 0
@@ -80,7 +113,11 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 1560
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
   Apt7:
     battery:
       E_init: 0
@@ -90,7 +127,11 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 3120
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
   Apt8:
     battery:
       E_init: 0
@@ -100,10 +141,12 @@ houses:
       P_dis_max: 0
       eta_ch: 0.95
       eta_dis: 0.95
-      P_grid_max: 13.8
+      P_contracted: 13.8
+      battery_cost_eur: 1560
+      N_rated_cycles: 6000
+      DoD_rated: 0.95
+      aging_exponent: 1.5
 case: b8_pv10_no_battery_export__1month
-grid:
-  allow_export: true
 sharing:
   mode: fixed_alpha
   normalize: false

@@ -18,6 +18,5 @@ sharing:
     Apt7: 0.10
     Apt8: 0.10
 
-model:
-  cyclic_soc: true
-  battery_degradation_eur_per_kwh: 0.033
+# lambda calculado automaticamente de battery_cost_eur + N_rated_cycles via Wöhler
+# cyclic_soc: true herdado de _b8_base.yaml

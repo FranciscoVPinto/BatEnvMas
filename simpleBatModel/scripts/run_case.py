@@ -229,7 +229,8 @@ def _diagnose_multi_house_power(*, loads_by_house, pv_by_house, bat_params_by_ho
             load = float(loads_by_house[h][t])
             pv = float(pv_by_house[h][t])
             bat = bat_params_by_house.get(h) or {}
-            P_grid = float(bat.get("P_grid_max", 0.0))
+            # Aceita 'P_contracted' (novo) ou 'P_grid_max' (retrocompatibilidade)
+            P_grid = float(bat.get("P_contracted", bat.get("P_grid_max", 0.0)))
             P_dis = float(bat.get("P_dis_max", 0.0))
             max_supply_h = pv + P_grid + P_dis
             missing_h = load - max_supply_h
@@ -256,7 +257,7 @@ def _format_violations_section(title, viols):
             f"MaxSupply~{v['max_supply_kw']:.3f} | Missing={v['missing_kw']:.3f}"
         )
     lines.append("")
-    lines.append("Constraints: P_imp<=P_grid_max and P_dis<=P_dis_max.")
+    lines.append("Restrições ativas: P_imp<=P_contracted, P_exp<=P_contracted, P_dis<=P_dis_max.")
     return lines
 
 
@@ -268,7 +269,7 @@ def _write_infeas_report(*, out_dir, case_name, solver_used, termination_conditi
         f"CASE: {case_name}", "MODE: house_indexed_unified",
         f"SOLVER_USED: {solver_used}", f"TERMINATION: {termination_condition}", "",
         "This case is infeasible (or solver did not return a feasible solution).",
-        "Typical causes: P_imp<=P_grid_max, P_dis<=P_dis_max, SoC bounds.", "",
+        "Causas típicas: P_imp<=P_contracted, P_exp<=P_contracted, P_dis<=P_dis_max, limites SoC.", "",
     ]
     report_path.write_text("\n".join(header + lines), encoding="utf-8")
     if bool(debug_cfg.get("write_lp", True)) and model is not None:
@@ -317,7 +318,7 @@ def _tariff_for_house(tariff, h):
 def _solve_pwl_per_house(
     *, houses, loads_by_house, bat_params_by_house, c_grid, c_sell,
     pv_by_house, dt_hours, allow_export, cyclic_soc, pwl_cfg_dict,
-    solver, solver_options, tee, case_name,
+    solver, solver_options, tee, case_name, rolling_cfg=None,
 ):
     """
     Two-stage linear decomposition for PWL degradation — one sub-problem per house.
@@ -343,6 +344,10 @@ def _solve_pwl_per_house(
     constraints is much tighter than big-M (bounds are physical, not artificial),
     so B&B closes to optimality in a fraction of the time.
 
+    Houses are solved in parallel using ThreadPoolExecutor when more than one
+    house is present. Each house sub-problem is fully independent (fixed-alpha
+    PV allocation), so no synchronisation is needed between workers.
+
     Returns
     -------
     house_dfs     : dict[house_id -> pd.DataFrame]
@@ -354,6 +359,8 @@ def _solve_pwl_per_house(
     from batEnv.models.multi_house_degradation_pwl import (
         _DEFAULT_LAMBDA_BY_BIN, _DEFAULT_SOC_BREAKPOINTS,
     )
+    import os
+    from concurrent.futures import ThreadPoolExecutor, as_completed
     import pandas as pd
 
     soc_bkpts = [float(v) for v in pwl_cfg_dict.get("soc_breakpoints", _DEFAULT_SOC_BREAKPOINTS)]
@@ -365,16 +372,19 @@ def _solve_pwl_per_house(
         if isinstance(lam_per_house_raw, dict) else None
     )
 
+    use_rolling = bool(rolling_cfg and rolling_cfg.get("enabled"))
+    if use_rolling:
+        from batEnv.utils.rolling_horizon import (
+            solve_rolling_horizon, resolve_window_step)
+
     _ACCEPTABLE = (pyo.TerminationCondition.optimal,
                    pyo.TerminationCondition.feasible,
                    pyo.TerminationCondition.maxTimeLimit)
 
-    house_dfs: dict = {}
-    pwl_rows: list = []
-    terminations: dict = {}
-    last_solver = solver
+    def _solve_one(h):
+        """Two-stage PWL solve for a single house. Thread-safe: builds its own
+        Pyomo models and HiGHS instances; shares no mutable state with siblings."""
 
-    for h in houses:
         # Per-house lambda vector (global default or per-house override)
         lam_h = lam_per_house[str(h)] if (lam_per_house and str(h) in lam_per_house) else lam_bins
 
@@ -383,7 +393,7 @@ def _solve_pwl_per_house(
         e_min_h = float(bp.get("E_min", 0.0))
         e_max_h = float(bp.get("E_max", 0.0))
         e_init_h = float(bp.get("E_init", 0.0))
-        span = max(e_max_h - e_min_h, 1e-9)  # avoid division by zero
+        span = max(e_max_h - e_min_h, 1e-9)
 
         # Energy boundaries for each SoC bin (K bins, K+1 breakpoints)
         e_hi = [e_min_h + soc_bkpts[k + 1] * span for k in range(K)]
@@ -391,29 +401,49 @@ def _solve_pwl_per_house(
         T_h = len(loads_by_house[h])
 
         # ── Stage 1: base MILP (no degradation) ──────────────────────────────
-        logger.info("  [PWL 2-stage] house %s — stage 1 (base MILP, %d timesteps)...", h, T_h)
-        base_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
-        base_m = base_mh.make_instance(
-            houses=[h],
-            loads_by_house={h: loads_by_house[h]},
-            bat_params_by_house={h: bp},
-            c_grid={h: _tariff_for_house(c_grid, h)},
-            c_sell={h: _tariff_for_house(c_sell, h)},
-            pv_by_house={h: pv_by_house[h]},
-            alpha_mode="fixed",
-        )
-        results_1, last_solver = _solve_model_safe(
-            base_m, solver=solver, options=solver_options, tee=tee)
-        tc_1 = getattr(results_1.solver, "termination_condition", None)
-        if tc_1 not in _ACCEPTABLE:
-            raise RuntimeError(f"Case '{case_name}', house '{h}': stage-1 returned {tc_1}")
-        if tc_1 == pyo.TerminationCondition.maxTimeLimit:
-            _test = next(iter(base_m.P_imp.values()), None)
-            if _test is None or _test.value is None:
-                raise RuntimeError(
-                    f"Case '{case_name}', house '{h}': stage-1 hit time limit with no feasible solution.")
-            logger.warning("  [PWL 2-stage] house %s stage-1 hit time limit — using best solution.", h)
-        logger.info("  [PWL 2-stage] house %s stage-1 done (tc=%s, solver=%s).", h, tc_1, last_solver)
+        if use_rolling:
+            win, stp = resolve_window_step(rolling_cfg, T_h)
+            logger.info(
+                "  [PWL 2-stage] house %s — stage 1 (rolling, window=%d, step=%d, %d timesteps)...",
+                h, win, stp, T_h)
+            base_m, solver_used_h = solve_rolling_horizon(
+                houses=[h],
+                loads_by_house={h: loads_by_house[h]},
+                pv_by_house={h: pv_by_house[h]},
+                bat_params_by_house={h: bp},
+                c_grid={h: _tariff_for_house(c_grid, h)},
+                c_sell={h: _tariff_for_house(c_sell, h)},
+                dt_hours=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc,
+                window=win, step=stp,
+                solve_fn=_solve_model_safe, solver=solver,
+                solver_options=solver_options, tee=tee,
+                case_name=f"{case_name}/{h}",
+            )
+            tc_1 = "rolling"
+        else:
+            logger.info("  [PWL 2-stage] house %s — stage 1 (base MILP, %d timesteps)...", h, T_h)
+            base_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
+            base_m = base_mh.make_instance(
+                houses=[h],
+                loads_by_house={h: loads_by_house[h]},
+                bat_params_by_house={h: bp},
+                c_grid={h: _tariff_for_house(c_grid, h)},
+                c_sell={h: _tariff_for_house(c_sell, h)},
+                pv_by_house={h: pv_by_house[h]},
+                alpha_mode="fixed",
+            )
+            results_1, solver_used_h = _solve_model_safe(
+                base_m, solver=solver, options=solver_options, tee=tee)
+            tc_1 = getattr(results_1.solver, "termination_condition", None)
+            if tc_1 not in _ACCEPTABLE:
+                raise RuntimeError(f"Case '{case_name}', house '{h}': stage-1 returned {tc_1}")
+            if tc_1 == pyo.TerminationCondition.maxTimeLimit:
+                _test = next(iter(base_m.P_imp.values()), None)
+                if _test is None or _test.value is None:
+                    raise RuntimeError(
+                        f"Case '{case_name}', house '{h}': stage-1 hit time limit with no feasible solution.")
+                logger.warning("  [PWL 2-stage] house %s stage-1 hit time limit — using best solution.", h)
+            logger.info("  [PWL 2-stage] house %s stage-1 done (tc=%s, solver=%s).", h, tc_1, solver_used_h)
 
         # Extract SoC trajectory; clip to physical bounds for robustness
         E_traj = [e_init_h] + [
@@ -438,44 +468,61 @@ def _solve_pwl_per_house(
                 z_fixed[(t, k)] = 1.0 if k == k_t else 0.0
 
         # ── Stage 2: augmented MILP (same binaries + linear degradation term) ─
-        logger.info("  [PWL 2-stage] house %s — stage 2 (degradation MILP)...", h)
-        deg_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
-        deg_m = deg_mh.make_instance(
-            houses=[h],
-            loads_by_house={h: loads_by_house[h]},
-            bat_params_by_house={h: bp},
-            c_grid={h: _tariff_for_house(c_grid, h)},
-            c_sell={h: _tariff_for_house(c_sell, h)},
-            pv_by_house={h: pv_by_house[h]},
-            alpha_mode="fixed",
-        )
-        # Augment objective with the time-varying linear degradation penalty.
-        # lambda_t[t] is a Python float (not a Pyomo Param), so the expression
-        # is purely linear — no new binary or continuous variables added.
-        base_expr = deg_m.obj.expr
-        deg_m.del_component("obj")
-        deg_m.obj = pyo.Objective(
-            expr=base_expr + pyo.quicksum(
-                lambda_t[t] * (deg_m.P_ch[h, t] + deg_m.P_dis[h, t]) * dt_hours
-                for t in range(1, T_h + 1)
-            ),
-            sense=pyo.minimize,
-        )
-        results_2, last_solver = _solve_model_safe(
-            deg_m, solver=solver, options=solver_options, tee=tee)
-        tc_2 = getattr(results_2.solver, "termination_condition", None)
-        if tc_2 not in _ACCEPTABLE:
-            raise RuntimeError(f"Case '{case_name}', house '{h}': stage-2 returned {tc_2}")
-        if tc_2 == pyo.TerminationCondition.maxTimeLimit:
-            _test = next(iter(deg_m.P_imp.values()), None)
-            if _test is None or _test.value is None:
-                raise RuntimeError(
-                    f"Case '{case_name}', house '{h}': stage-2 hit time limit with no feasible solution.")
-            logger.warning("  [PWL 2-stage] house %s stage-2 hit time limit — using best solution.", h)
-        logger.info("  [PWL 2-stage] house %s stage-2 done (tc=%s).", h, tc_2)
+        # lambda_t[t] is a Python float (not a Pyomo Param), so the penalty is
+        # purely linear — no new binary or continuous variables added.
+        if use_rolling:
+            win, stp = resolve_window_step(rolling_cfg, T_h)
+            logger.info(
+                "  [PWL 2-stage] house %s — stage 2 (rolling, window=%d, step=%d)...", h, win, stp)
+            deg_m, solver_used_h = solve_rolling_horizon(
+                houses=[h],
+                loads_by_house={h: loads_by_house[h]},
+                pv_by_house={h: pv_by_house[h]},
+                bat_params_by_house={h: bp},
+                c_grid={h: _tariff_for_house(c_grid, h)},
+                c_sell={h: _tariff_for_house(c_sell, h)},
+                dt_hours=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc,
+                window=win, step=stp,
+                solve_fn=_solve_model_safe, solver=solver,
+                solver_options=solver_options, tee=tee,
+                lambda_t_by_house={h: lambda_t}, case_name=f"{case_name}/{h}",
+            )
+            tc_2 = "rolling"
+        else:
+            logger.info("  [PWL 2-stage] house %s — stage 2 (degradation MILP)...", h)
+            deg_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
+            deg_m = deg_mh.make_instance(
+                houses=[h],
+                loads_by_house={h: loads_by_house[h]},
+                bat_params_by_house={h: bp},
+                c_grid={h: _tariff_for_house(c_grid, h)},
+                c_sell={h: _tariff_for_house(c_sell, h)},
+                pv_by_house={h: pv_by_house[h]},
+                alpha_mode="fixed",
+            )
+            base_expr = deg_m.obj.expr
+            deg_m.del_component("obj")
+            deg_m.obj = pyo.Objective(
+                expr=base_expr + pyo.quicksum(
+                    lambda_t[t] * (deg_m.P_ch[h, t] + deg_m.P_dis[h, t]) * dt_hours
+                    for t in range(1, T_h + 1)
+                ),
+                sense=pyo.minimize,
+            )
+            results_2, solver_used_h = _solve_model_safe(
+                deg_m, solver=solver, options=solver_options, tee=tee)
+            tc_2 = getattr(results_2.solver, "termination_condition", None)
+            if tc_2 not in _ACCEPTABLE:
+                raise RuntimeError(f"Case '{case_name}', house '{h}': stage-2 returned {tc_2}")
+            if tc_2 == pyo.TerminationCondition.maxTimeLimit:
+                _test = next(iter(deg_m.P_imp.values()), None)
+                if _test is None or _test.value is None:
+                    raise RuntimeError(
+                        f"Case '{case_name}', house '{h}': stage-2 hit time limit with no feasible solution.")
+                logger.warning("  [PWL 2-stage] house %s stage-2 hit time limit — using best solution.", h)
+            logger.info("  [PWL 2-stage] house %s stage-2 done (tc=%s).", h, tc_2)
 
-        terminations[h] = f"s1:{tc_1},s2:{tc_2}"
-        house_dfs[h] = _extract_house_dataframe(deg_m, h)
+        df_h = _extract_house_dataframe(deg_m, h)
 
         # ── PWL metrics (computed from Stage-2 dispatch + Stage-1 bins) ───────
         deg_cost_h = 0.0
@@ -496,8 +543,48 @@ def _solve_pwl_per_house(
         }
         for k in range(K):
             row[f"bin_hours_{k}"] = bin_hours_h[k]
-        pwl_rows.append(row)
 
+        return h, df_h, row, f"s1:{tc_1},s2:{tc_2}", solver_used_h
+
+    # ── Execução por casa ──────────────────────────────────────────────────────
+    # As casas são independentes (fixed-alpha), mas a execução em THREADS NÃO é
+    # segura com o appsi_highs: a captura de stdout/stderr do Pyomo
+    # (capture_output / tee) é global e colide entre threads, provocando solves
+    # corrompidos (falsas "infeasibilities") e deadlocks de I/O — observado em
+    # Spyder/ipykernel. Por isso o default é SEQUENCIAL. Com rolling horizon cada
+    # casa resolve depressa, pelo que o custo é aceitável. Só ativar allow_parallel
+    # num ambiente onde o solver não manipule os streams globais (e com cautela).
+    house_dfs: dict = {}
+    pwl_rows_map: dict = {}
+    terminations: dict = {}
+    last_solver = solver
+
+    allow_parallel = False
+    n_workers = (min(len(houses), os.cpu_count() or 1)) if allow_parallel else 1
+
+    if n_workers > 1:
+        logger.info(
+            "  [PWL parallel] %d houses → %d parallel workers.",
+            len(houses), n_workers,
+        )
+        with ThreadPoolExecutor(max_workers=n_workers) as executor:
+            future_to_h = {executor.submit(_solve_one, h): h for h in houses}
+            for future in as_completed(future_to_h):
+                h_res, df, row, term, su = future.result()
+                house_dfs[h_res] = df
+                pwl_rows_map[h_res] = row
+                terminations[h_res] = term
+                last_solver = su
+    else:
+        for h in houses:
+            h_res, df, row, term, su = _solve_one(h)
+            house_dfs[h_res] = df
+            pwl_rows_map[h_res] = row
+            terminations[h_res] = term
+            last_solver = su
+
+    # Preserve original house order in metrics DataFrame
+    pwl_rows = [pwl_rows_map[h] for h in houses]
     pwl_metrics = pd.DataFrame(pwl_rows) if pwl_rows else pd.DataFrame()
     return house_dfs, pwl_metrics, terminations, last_solver
 
@@ -574,10 +661,90 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
         for h in houses
     }
 
+    # ── Validação da Potência Contratada (PC) ────────────────────────────────
+    # Em Portugal, a PC deve ser um dos escalões oficiais ERSE.
+    # O excedente de PV exportado está limitado à PC (DL 15/2022, art. 23.º),
+    # por isso usar um valor fora dos escalões oficiais é um erro de configuração.
+    from batEnv.utils.battery_economics import (
+        PORTUGUESE_CONTRACTED_POWER_KVA, nearest_contracted_power)
+    for h in houses:
+        bp = bat_params_by_house.get(h) or {}
+        pc = bp.get("P_contracted", bp.get("P_grid_max"))
+        if pc is not None:
+            pc = float(pc)
+            is_official = any(abs(pc - v) < 1e-6 for v in PORTUGUESE_CONTRACTED_POWER_KVA)
+            if not is_official:
+                suggested = nearest_contracted_power(pc)
+                logger.warning(
+                    "Casa '%s': P_contracted=%.2f kVA nao e um escalao oficial ERSE. "
+                    "Escalao sugerido: %.2f kVA. "
+                    "Escaloes validos: %s",
+                    h, pc, suggested, PORTUGUESE_CONTRACTED_POWER_KVA,
+                )
+
     model_cfg = cfg.get("model", {}) if isinstance(cfg.get("model", {}), dict) else {}
     cyclic_soc = bool(model_cfg.get("cyclic_soc", True))
-    lambda_deg = float(model_cfg.get("battery_degradation_eur_per_kwh", 0.0) or 0.0)
     pwl_cfg = model_cfg.get("battery_degradation_pwl", None)
+    rolling_cfg = model_cfg.get("rolling_horizon", None)
+
+    # ── Custo de degradação λ (€/kWh de throughput AC) ──────────────────────
+    # Prioridade:
+    #   1. model.battery_degradation_eur_per_kwh  — valor explícito no YAML → λ global
+    #      (incluindo 0.0 explícito → sem degradação, sem auto-calc)
+    #   2. Calculado de parâmetros físicos de cada bateria via Wöhler → λ por casa
+    #      (ativado apenas quando a chave está ausente ou é null)
+    #   3. Zero — sem penalidade de degradação (modelo base)
+    _MISSING = object()
+    _raw_lambda = model_cfg.get("battery_degradation_eur_per_kwh", _MISSING)
+    _explicit_lambda = _raw_lambda is not _MISSING and _raw_lambda is not None
+    lambda_deg = float(_raw_lambda if _explicit_lambda else 0.0)
+    lambda_deg_by_house: dict = {}   # vazio → usa lambda_deg global como fallback
+
+    if not _explicit_lambda and lambda_deg == 0.0 and not isinstance(pwl_cfg, dict):
+        # Calcular λ individualmente para cada casa a partir dos seus parâmetros físicos
+        from batEnv.utils.battery_economics import (
+            compute_degradation_cost_per_kwh, degradation_summary)
+        for h in houses:
+            bp = bat_params_by_house.get(h) or {}
+            cost_eur = bp.get("battery_cost_eur")
+            N_rated  = bp.get("N_rated_cycles")
+            if cost_eur and N_rated:
+                try:
+                    lam_h = compute_degradation_cost_per_kwh(
+                        battery_cost_eur = float(cost_eur),
+                        E_max_kwh        = float(bp.get("E_max", 10.0)),
+                        E_min_kwh        = float(bp.get("E_min", 0.0)),
+                        N_rated_cycles   = float(N_rated),
+                        DoD_rated        = float(bp.get("DoD_rated", 0.80)),
+                        aging_exponent   = float(bp.get("aging_exponent", 1.50)),
+                        eta_ch           = float(bp.get("eta_ch", 0.95)),
+                        eta_dis          = float(bp.get("eta_dis", 0.95)),
+                    )
+                    summary = degradation_summary(
+                        battery_cost_eur = float(cost_eur),
+                        E_max_kwh        = float(bp.get("E_max", 10.0)),
+                        E_min_kwh        = float(bp.get("E_min", 0.0)),
+                        N_rated_cycles   = float(N_rated),
+                        DoD_rated        = float(bp.get("DoD_rated", 0.80)),
+                        aging_exponent   = float(bp.get("aging_exponent", 1.50)),
+                        eta_ch           = float(bp.get("eta_ch", 0.95)),
+                        eta_dis          = float(bp.get("eta_dis", 0.95)),
+                    )
+                    lambda_deg_by_house[h] = lam_h
+                    logger.info(
+                        "Degradação calculada (casa '%s'): λ=%.5f €/kWh | "
+                        "N_actual=%.0f ciclos | throughput_vida=%.0f kWh | DoD_real=%.0f%%",
+                        h, lam_h, summary["N_actual_cycles"],
+                        summary["lifetime_throughput_kwh"],
+                        summary["DoD_actual"] * 100,
+                    )
+                except Exception as deg_err:
+                    logger.warning(
+                        "Não foi possível calcular λ_deg de parâmetros físicos "
+                        "(casa '%s'): %s. A usar λ=0.", h, deg_err)
+        # lambda_deg representativo para metadata: média dos valores calculados
+        if lambda_deg_by_house:
+            lambda_deg = sum(lambda_deg_by_house.values()) / len(lambda_deg_by_house)
 
     # Model priority: PWL > linear degradation > base
     if isinstance(pwl_cfg, dict):
@@ -598,7 +765,7 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
             soc_breakpoints=soc_bkpts, lambda_by_bin=lam_bins,
             lambda_by_bin_per_house=lam_per_house)
         m = None  # built per-house later
-    elif lambda_deg > 0.0:
+    elif lambda_deg > 0.0 or lambda_deg_by_house:
         mh = MultiHouseModelDegradation(
             dt=dt_hours, allow_export=allow_export,
             cyclic_soc=cyclic_soc, lambda_deg=lambda_deg)
@@ -607,7 +774,8 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
             houses=houses, loads_by_house=loads_by_house,
             pv_by_house=pv_by_house, pv_total=pv_total,
             alpha_mode=alpha_mode, bat_params_by_house=bat_params_by_house,
-            c_grid=c_grid, c_sell=c_sell)
+            c_grid=c_grid, c_sell=c_sell,
+            lambda_deg_by_house=lambda_deg_by_house or None)
     else:
         mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
         model_kind = "house_indexed_unified"
@@ -675,6 +843,7 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
                 solver_options=solver_options,
                 tee=tee,
                 case_name=case_name,
+                rolling_cfg=rolling_cfg,
             )
         except Exception as e:  # noqa: BLE001
             diag_pv = _pwl_pv_by_house or {h: [0.0] * T for h in houses}
@@ -739,9 +908,13 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
         "cyclic_soc": cyclic_soc,
         "alpha_mode": alpha_mode,
         "battery_degradation_eur_per_kwh": lambda_deg,
+        "battery_degradation_eur_per_kwh_by_house": lambda_deg_by_house or None,
         "battery_degradation_pwl": (
             {"soc_breakpoints": mh.soc_breakpoints, "lambda_by_bin": mh.lambda_by_bin}
             if model_kind == "house_indexed_degradation_pwl" else None
+        ),
+        "rolling_horizon": (
+            dict(rolling_cfg) if (rolling_cfg and rolling_cfg.get("enabled")) else None
         ),
         "sharing_enabled": False,
         "model_kind": model_kind,

@@ -17,7 +17,7 @@ houses:
     { E_init: 0, E_min: 0, E_max: 0,
       P_ch_max: 0, P_dis_max: 0,
       eta_ch: 0.95, eta_dis: 0.95,
-      P_grid_max: 13.8 } }
+      P_contracted: 13.8 } }  # valor elevado intencional — sem bateria nunca é ativo
   Apt2: { battery: *nobat }
   Apt3: { battery: *nobat }
   Apt4: { battery: *nobat }

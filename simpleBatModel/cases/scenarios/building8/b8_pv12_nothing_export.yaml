@@ -1,6 +1,10 @@
+extends: _b8_base.yaml
 case: b8_pv12_nothing_export
 
+# Baseline absoluto: sem bateria, sem partilha de PV — cada apartamento usa só o seu.
+# pv_total do base é anulado; cada casa recebe o seu gerador individual.
 data:
+  pv_total: ~
   pv:
     Apt1: data/pv_gen_01.csv
     Apt2: data/pv_gen_02.csv
@@ -10,33 +14,19 @@ data:
     Apt6: data/pv_gen_06.csv
     Apt7: data/pv_gen_07.csv
     Apt8: data/pv_gen_08.csv
-  loads:
-    Apt1: data/load_cons_09.csv
-    Apt2: data/load_cons_02.csv
-    Apt3: data/load_cons_03.csv
-    Apt4: data/load_cons_04.csv
-    Apt5: data/load_cons_05.csv
-    Apt6: data/load_cons_06.csv
-    Apt7: data/load_cons_07.csv
-    Apt8: data/load_cons_08.csv
-
-tariffs:
-  grid_buy: 0.27
-  grid_sell: 0.06
 
 grid:
   allow_export: true
 
+# P_contracted por apartamento igual ao do base — sem bateria a restrição de import
+# é vinculativa se o pico de carga exceder o escalão contratado.
+# Apt5 tem pico 2.301 kW; P_contracted=2.30 causaria infeasibilidade marginal.
 houses:
-  Apt1: { battery: &nobat
-    { E_init: 0, E_min: 0, E_max: 0,
-      P_ch_max: 0, P_dis_max: 0,
-      eta_ch: 0.95, eta_dis: 0.95,
-      P_grid_max: 13.8 } }
-  Apt2: { battery: *nobat }
-  Apt3: { battery: *nobat }
-  Apt4: { battery: *nobat }
-  Apt5: { battery: *nobat }
-  Apt6: { battery: *nobat }
-  Apt7: { battery: *nobat }
-  Apt8: { battery: *nobat }
+  Apt1: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 2.30 } }
+  Apt2: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 2.30 } }
+  Apt3: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 1.15 } }
+  Apt4: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 2.30 } }
+  Apt5: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 3.45 } }
+  Apt6: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 1.15 } }
+  Apt7: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 2.30 } }
+  Apt8: { battery: { E_init: 0, E_min: 0, E_max: 0, P_ch_max: 0, P_dis_max: 0, eta_ch: 0.95, eta_dis: 0.95, P_contracted: 1.15 } }

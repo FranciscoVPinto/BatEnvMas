@@ -1,0 +1,30 @@
+runset: pwl_validation
+cases_base_dir: cases/scenarios/building8
+
+# Validacao do rolling horizon: corre o pv15 a 3 meses COM rolling e escreve numa
+# pasta separada, para comparar com o resultado EXATO ja gerado pelo pwl_sweep em
+#   results/full_horizon_sweep/3months/b8_pv15_equal_pwl_export__3months/
+# vs (este)
+#   results/pwl_validation/3months_rolling/b8_pv15_equal_pwl_export__3months_rolling/
+# Comparar: results_pwl_metrics.csv (pwl_degradation_cost_EUR, battery_throughput_kWh)
+# e o custo de rede nos results_house_*.csv. Desvio pequeno => rolling credivel.
+cases:
+  - b8_pv15_equal_pwl_export.yaml
+
+sweep:
+  - suffix: 3months_rolling
+    outputs_subdir: 3months_rolling
+    time_override: { horizon: 8640, dt_hours: 0.25 }
+    overrides:
+      model:
+        rolling_horizon: { enabled: true, window: 1344, step: 672 }
+
+defaults:
+  outputs_dir: results/pwl_validation
+  tee: false
+  solver:
+    name: appsi_highs
+    options:
+      mip_rel_gap: 0.005
+      time_limit: 3600.0
+      mip_heuristic_effort: 1.0

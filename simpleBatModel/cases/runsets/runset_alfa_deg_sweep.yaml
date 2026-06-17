@@ -7,18 +7,15 @@ cases:
   - b8_pv03_consumption_instant_export.yaml
   - b8_pv04_consumption_mean_export.yaml
   - b8_pv09_optimal_export.yaml
+  - b8_pv20_optimal_no_export.yaml
 
 sweep:
   - suffix: no_deg
     overrides:
       model:
-        cyclic_soc: true
-        battery_degradation_eur_per_kwh: 0.0
+        battery_degradation_eur_per_kwh: 0.0   # força λ=0, sem custo de degradação
   - suffix: with_deg
-    overrides:
-      model:
-        cyclic_soc: true
-        battery_degradation_eur_per_kwh: 0.033
+    overrides: {}   # λ calculado automaticamente via Wöhler (battery_cost_eur + N_rated_cycles)
 
 defaults:
   outputs_dir: results/alfa_deg_sweep

@@ -1,7 +1,7 @@
 case: b8_pv07_consumption_instant_no_export__3months
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv07_consumption_instant_no_export__3months.yaml
-created_at: '2026-06-08T22:57:53.633176'
+created_at: '2026-07-30T04:05:56.260290'
 dt_hours: 0.25
 horizon: 8640
 start: 2025-01-01 00:00

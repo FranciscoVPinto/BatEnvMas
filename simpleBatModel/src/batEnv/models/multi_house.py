@@ -127,7 +127,8 @@ class MultiHouseModel:
         m.P_dis_max    = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "P_dis_max", 0.0))
         m.eta_ch       = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "eta_ch",    1.0))
         m.eta_dis      = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "eta_dis",   1.0))
-        m.P_contracted = pyo.Param(m.H, initialize=contracted_power, within=pyo.NonNegativeReals)
+        m.P_contracted = pyo.Param(
+            m.H, initialize=lambda mm, h: contracted_power(h), within=pyo.NonNegativeReals)
 
         m.Load   = pyo.Param(m.H, m.T, initialize=_load_dict(loads_by_house, houses, T),
                              within=pyo.NonNegativeReals)

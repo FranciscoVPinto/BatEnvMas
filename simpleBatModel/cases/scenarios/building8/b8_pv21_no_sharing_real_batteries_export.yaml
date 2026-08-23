@@ -1,0 +1,34 @@
+extends: _b8_base.yaml
+case: b8_pv21_no_sharing_real_batteries_export
+
+# Baseline CONTROLADO "sem partilha": cada apartamento usa apenas o seu proprio PV,
+# mas com a bateria REAL do respetivo apartamento (herdada do _b8_base) e a sua
+# P_contracted real — ao contrario do pv11, que usa uma bateria generica de 10 kWh
+# igual para todos (~80 kWh no edificio, vs 27.45 kWh instalados) e P_contracted
+# uniforme de 3.45 kVA.
+#
+# Objetivo: isolar o efeito da PARTILHA de PV mantendo o armazenamento constante.
+#   pv21 (PV proprio + baterias reais)  vs  pv09 (PV partilhado + baterias reais)
+# => diferenca atribuivel apenas a partilha, com o mesmo parque de baterias.
+#
+# O pv11 continua a ser util para a leitura oposta (efeito de aumentar a bateria
+# sem partilha), mas nao serve de comparacao controlada para o valor da partilha.
+#
+# pv_total do base e anulado; cada casa recebe o seu gerador individual.
+data:
+  pv_total: ~
+  pv:
+    Apt1: data/pv_gen_01.csv
+    Apt2: data/pv_gen_02.csv
+    Apt3: data/pv_gen_03.csv
+    Apt4: data/pv_gen_04.csv
+    Apt5: data/pv_gen_05.csv
+    Apt6: data/pv_gen_06.csv
+    Apt7: data/pv_gen_07.csv
+    Apt8: data/pv_gen_08.csv
+
+grid:
+  allow_export: true
+
+# NOTA: nao ha bloco `houses` — as baterias reais por apartamento e a P_contracted
+# real sao herdadas do _b8_base.yaml, exatamente como nos cenarios de partilha.

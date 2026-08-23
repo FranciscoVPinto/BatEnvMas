@@ -2,7 +2,6 @@ time:
   dt_hours: 0.25
   start: 2025-01-01 00:00
 data:
-  pv_total: null
   loads:
     Apt1: data/load_cons_01.csv
     Apt2: data/load_cons_02.csv

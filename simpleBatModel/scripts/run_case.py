@@ -164,7 +164,26 @@ def _configure_highs_logging(opt):
             pass
 
 
-def _solve_model_safe(model, *, solver, options, tee):
+def _configure_highs_file_log(opt, log_path):
+    """Write HiGHS's native solver log to `log_path`, independent of `tee`.
+
+    Does NOT echo to console (avoids flooding Spyder's output over long
+    rolling-horizon runs with hundreds of window solves) — the goal is to
+    always have the *last attempted* window's solver log on disk, so that if
+    a window fails we have the raw HiGHS diagnostic without needing to
+    re-run with tee=True.
+    """
+    if hasattr(opt, "options"):
+        try:
+            opt.options["output_flag"] = True
+            opt.options["log_to_console"] = False
+            opt.options["log_file"] = str(log_path)
+            opt.options.setdefault("mip_min_logging_interval", 1)
+        except (AttributeError, TypeError):
+            pass
+
+
+def _solve_model_safe(model, *, solver, options, tee, log_file=None):
     chain = [s for s in _choose_solver_chain(solver) if _solver_available_local(s)]
     if not chain:
         raise RuntimeError(
@@ -182,8 +201,13 @@ def _solve_model_safe(model, *, solver, options, tee):
                 for k, v in options.items():
                     # HiGHS expects doubles for numeric options; coerce int → float.
                     opt.options[k] = float(v) if isinstance(v, int) else v
-            if tee and s in ("appsi_highs", "highs"):
-                _configure_highs_logging(opt)
+            if s in ("appsi_highs", "highs"):
+                if tee:
+                    _configure_highs_logging(opt)
+                if log_file is not None:
+                    # Explicit log_file wins over the generic tee-based one —
+                    # always overwritten so it reflects the most recent solve.
+                    _configure_highs_file_log(opt, log_file)
             auto_load = True
             if hasattr(opt, "config"):
                 try:
@@ -262,11 +286,11 @@ def _format_violations_section(title, viols):
 
 
 def _write_infeas_report(*, out_dir, case_name, solver_used, termination_condition,
-                          debug_cfg, lines, model=None):
+                          debug_cfg, lines, model=None, model_kind="unknown"):
     out_dir.mkdir(parents=True, exist_ok=True)
     report_path = out_dir / "debug_infeasibility.txt"
     header = [
-        f"CASE: {case_name}", "MODE: house_indexed_unified",
+        f"CASE: {case_name}", f"MODE: {model_kind}",
         f"SOLVER_USED: {solver_used}", f"TERMINATION: {termination_condition}", "",
         "This case is infeasible (or solver did not return a feasible solution).",
         "Causas típicas: P_imp<=P_contracted, P_exp<=P_contracted, P_dis<=P_dis_max, limites SoC.", "",
@@ -283,11 +307,15 @@ def _write_infeas_report(*, out_dir, case_name, solver_used, termination_conditi
 
 def _handle_infeasible(*, case_out_dir, case_name, debug_cfg, loads_by_house,
                         pv_by_house, bat_params_by_house, solver_used, solver,
-                        termination, model, original_exc):
+                        termination, model, original_exc, model_kind="unknown"):
     sys_viol, house_viol = _diagnose_multi_house_power(
         loads_by_house=loads_by_house, pv_by_house=pv_by_house,
         bat_params_by_house=bat_params_by_house, max_rows=int(debug_cfg["max_rows"]))
     lines = []
+    if original_exc is not None:
+        lines.append(
+            f"ORIGINAL ERROR: {type(original_exc).__name__}: {original_exc}")
+        lines.append("")
     if sys_viol:
         lines.extend(_format_violations_section(
             "== SYSTEM-LEVEL POWER VIOLATIONS ==", sys_viol))
@@ -302,8 +330,9 @@ def _handle_infeasible(*, case_out_dir, case_name, debug_cfg, loads_by_house,
         out_dir=case_out_dir, case_name=case_name,
         solver_used=str(solver_used or solver),
         termination_condition=str(termination or ""),
-        debug_cfg=debug_cfg, lines=lines, model=model)
-    err = RuntimeError(f"Infeasible/unsolved case '{case_name}'. See: {report}")
+        debug_cfg=debug_cfg, lines=lines, model=model, model_kind=model_kind)
+    exc_hint = f" | {type(original_exc).__name__}: {original_exc}" if original_exc is not None else ""
+    err = RuntimeError(f"Infeasible/unsolved case '{case_name}'. See: {report}{exc_hint}")
     err.__cause__ = original_exc
     return err
 
@@ -318,7 +347,7 @@ def _tariff_for_house(tariff, h):
 def _solve_pwl_per_house(
     *, houses, loads_by_house, bat_params_by_house, c_grid, c_sell,
     pv_by_house, dt_hours, allow_export, cyclic_soc, pwl_cfg_dict,
-    solver, solver_options, tee, case_name, rolling_cfg=None,
+    solver, solver_options, tee, case_name, rolling_cfg=None, case_out_dir=None,
 ):
     """
     Two-stage linear decomposition for PWL degradation — one sub-problem per house.
@@ -344,9 +373,10 @@ def _solve_pwl_per_house(
     constraints is much tighter than big-M (bounds are physical, not artificial),
     so B&B closes to optimality in a fraction of the time.
 
-    Houses are solved in parallel using ThreadPoolExecutor when more than one
-    house is present. Each house sub-problem is fully independent (fixed-alpha
-    PV allocation), so no synchronisation is needed between workers.
+    Each house sub-problem is fully independent (fixed-alpha PV allocation).
+    They are solved SEQUENTIALLY by default (see `allow_parallel` below) —
+    appsi_highs captures stdout/stderr globally, which is not thread-safe and
+    corrupts solves when run concurrently via ThreadPoolExecutor.
 
     Returns
     -------
@@ -417,7 +447,7 @@ def _solve_pwl_per_house(
                 window=win, step=stp,
                 solve_fn=_solve_model_safe, solver=solver,
                 solver_options=solver_options, tee=tee,
-                case_name=f"{case_name}/{h}",
+                case_name=f"{case_name}/{h}", debug_dir=case_out_dir,
             )
             tc_1 = "rolling"
         else:
@@ -486,6 +516,7 @@ def _solve_pwl_per_house(
                 solve_fn=_solve_model_safe, solver=solver,
                 solver_options=solver_options, tee=tee,
                 lambda_t_by_house={h: lambda_t}, case_name=f"{case_name}/{h}",
+                debug_dir=case_out_dir,
             )
             tc_2 = "rolling"
         else:
@@ -795,32 +826,64 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
 
         if alpha_mode == "optimal":
             # Stage 1: solve base model (no PWL) to get optimal PV allocation.
-            logger.info("PWL optimal-alpha: stage 1 — solving base model for PV allocation...")
-            base_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
-            base_m = base_mh.make_instance(
-                houses=houses, loads_by_house=loads_by_house,
-                bat_params_by_house=bat_params_by_house,
-                c_grid=c_grid, c_sell=c_sell,
-                pv_total=pv_total, alpha_mode="optimal",
-            )
+            # For long horizons where the rest of the pipeline (Stage 2) already
+            # uses rolling horizon, apply it here too — the PV-allocation
+            # constraint (sum_h PV[h,t] == PV_total[t]) is purely instantaneous,
+            # so it composes cleanly with the per-window solve (only the SoC is
+            # carried across windows). This avoids the monolithic Stage-1 solve
+            # timing out at 6-month/1-year horizons.
+            use_rolling_stage1 = bool(rolling_cfg and rolling_cfg.get("enabled"))
             try:
-                base_results, base_solver = _solve_model_safe(
-                    base_m, solver=solver, options=solver_options, tee=False)
-                base_tc = getattr(base_results.solver, "termination_condition", None)
-                _ACCEPTABLE = (pyo.TerminationCondition.optimal,
-                               pyo.TerminationCondition.feasible,
-                               pyo.TerminationCondition.maxTimeLimit)
-                if base_tc not in _ACCEPTABLE:
-                    raise RuntimeError(f"Base model returned {base_tc}")
-                # Extract fixed PV allocation from optimal solution.
-                # max(0.0, ...) guards against tiny negative floats from solver precision.
-                _pwl_pv_by_house = {
-                    h: [max(0.0, pyo.value(base_m.PV[h, t]) or 0.0) for t in range(1, T + 1)]
-                    for h in houses
-                }
+                if use_rolling_stage1:
+                    from batEnv.utils.rolling_horizon import (
+                        solve_rolling_horizon_pv_allocation, resolve_window_step)
+                    win1, stp1 = resolve_window_step(rolling_cfg, T)
+                    logger.info(
+                        "PWL optimal-alpha: stage 1 — rolling-horizon PV allocation "
+                        "(window=%d, step=%d, T=%d)...", win1, stp1, T)
+                    _pwl_pv_by_house, _ = solve_rolling_horizon_pv_allocation(
+                        houses=houses, loads_by_house=loads_by_house,
+                        bat_params_by_house=bat_params_by_house,
+                        c_grid=c_grid, c_sell=c_sell, pv_total=pv_total,
+                        dt_hours=dt_hours, allow_export=allow_export,
+                        cyclic_soc=cyclic_soc, window=win1, step=stp1,
+                        solve_fn=_solve_model_safe, solver=solver,
+                        solver_options=solver_options, tee=tee,
+                        case_name=case_name, debug_dir=case_out_dir,
+                    )
+                else:
+                    logger.info("PWL optimal-alpha: stage 1 — solving base model for PV allocation...")
+                    base_mh = MultiHouseModel(dt=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc)
+                    base_m = base_mh.make_instance(
+                        houses=houses, loads_by_house=loads_by_house,
+                        bat_params_by_house=bat_params_by_house,
+                        c_grid=c_grid, c_sell=c_sell,
+                        pv_total=pv_total, alpha_mode="optimal",
+                    )
+                    base_results, base_solver = _solve_model_safe(
+                        base_m, solver=solver, options=solver_options, tee=False)
+                    base_tc = getattr(base_results.solver, "termination_condition", None)
+                    _ACCEPTABLE = (pyo.TerminationCondition.optimal,
+                                   pyo.TerminationCondition.feasible,
+                                   pyo.TerminationCondition.maxTimeLimit)
+                    if base_tc not in _ACCEPTABLE:
+                        raise RuntimeError(f"Base model returned {base_tc}")
+                    # Extract fixed PV allocation from optimal solution.
+                    # max(0.0, ...) guards against tiny negative floats from solver precision.
+                    _pwl_pv_by_house = {
+                        h: [max(0.0, pyo.value(base_m.PV[h, t]) or 0.0) for t in range(1, T + 1)]
+                        for h in houses
+                    }
                 logger.info("PWL optimal-alpha: stage 1 done. Stage 2 — per-house PWL solve...")
             except Exception as base_e:
-                logger.warning("PWL stage-1 base solve failed (%s) — falling back to equal PV split.", base_e)
+                msg = (
+                    f"PWL stage-1 PV-allocation solve failed ({base_e!r}) — "
+                    f"fell back to EQUAL PV split for case '{case_name}'. "
+                    f"Results for this case are NOT a genuine optimal-alpha solution "
+                    f"and should be excluded/re-run."
+                )
+                logger.warning(msg)
+                warnings.append(msg)
                 _pwl_pv_by_house = {
                     h: [float(pv_total[t]) / max(1, len(houses)) for t in range(T)]
                     for h in houses
@@ -844,6 +907,7 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
                 tee=tee,
                 case_name=case_name,
                 rolling_cfg=rolling_cfg,
+                case_out_dir=case_out_dir,
             )
         except Exception as e:  # noqa: BLE001
             diag_pv = _pwl_pv_by_house or {h: [0.0] * T for h in houses}
@@ -851,7 +915,8 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
                 case_out_dir=case_out_dir, case_name=case_name, debug_cfg=debug_cfg,
                 loads_by_house=loads_by_house, pv_by_house=diag_pv,
                 bat_params_by_house=bat_params_by_house, solver_used=solver_used,
-                solver=solver, termination=None, model=None, original_exc=e) from e
+                solver=solver, termination=None, model=None, model_kind=model_kind,
+                original_exc=e) from e
 
         for h, df in house_dfs.items():
             df.to_csv(case_out_dir / f"results_house_{h}.csv", index=False)
@@ -891,7 +956,8 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
                 case_out_dir=case_out_dir, case_name=case_name, debug_cfg=debug_cfg,
                 loads_by_house=loads_by_house, pv_by_house=diag_pv_by_house,
                 bat_params_by_house=bat_params_by_house, solver_used=solver_used,
-                solver=solver, termination=termination, model=m, original_exc=e) from e
+                solver=solver, termination=termination, model=m, model_kind=model_kind,
+                original_exc=e) from e
 
         for h, df in multi_model_to_dataframes(m).items():
             df.to_csv(case_out_dir / f"results_house_{h}.csv", index=False)

@@ -57,10 +57,18 @@ def load_yaml_dict(path: str | Path, *, inject_key: Optional[str] = None) -> dic
 
 
 def deep_merge(base: dict, override: dict) -> dict:
-    """Recursive merge: dicts are merged key-wise, scalars from `override` win."""
+    """Recursive merge: dicts are merged key-wise, scalars from `override` win.
+
+    An explicit `null` in `override` DELETES the key from the merged result
+    (rather than setting it to None) — mirrors `batEnv.io.loaders._deep_merge`
+    used for `extends:` resolution, so runset-level overrides behave the same
+    way when cancelling an inherited key (e.g. `data.pv_total: ~`).
+    """
     out = dict(base or {})
     for k, v in (override or {}).items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
+        if v is None and k in out:
+            del out[k]
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
             out[k] = deep_merge(out[k], v)
         else:
             out[k] = v

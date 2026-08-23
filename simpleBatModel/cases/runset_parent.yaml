@@ -4,13 +4,22 @@ runset:
   - runsets/runset_pwl_sweep.yaml
   - runsets/runset_pwl_validation.yaml
 
-# Bateria completa de sweeps ativa. (pwl_validation fica off — era so o caso de
-# validacao do rolling horizon; pôr a true para repetir essa comparacao.)
+# Para fechar as duas lacunas metodologicas identificadas na revisao da tese:
+#
+#  1) Baseline controlado sem partilha (pv21, baterias REAIS) — ja incluido no
+#     full_horizon_sweep. Como o run_experiment salta corridas que ja tem
+#     meta.yaml (skip_existing), reactivar full_horizon_sweep corre APENAS os 4
+#     horizontes do pv21; os restantes 60 casos sao saltados.
+#
+#  2) Validacao exata-vs-rolling tambem para a alocacao optimal (pv19), a 3
+#     meses — pwl_validation passa a true e inclui pv15 + pv19.
+#
+# Depois de correr, repor pwl_validation: false e (se quiser) desligar os outros.
 enabled:
-  alfa_deg_sweep: true
+  alfa_deg_sweep: false
   full_horizon_sweep: true
-  pwl_sweep: true
-  pwl_validation: false
+  pwl_sweep: false
+  pwl_validation: true
 
 defaults:
   outputs_dir: results

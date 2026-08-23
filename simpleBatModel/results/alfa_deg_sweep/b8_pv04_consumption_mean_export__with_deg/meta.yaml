@@ -1,7 +1,7 @@
 case: b8_pv04_consumption_mean_export__with_deg
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\results\alfa_deg_sweep\_sweep_tmp\b8_pv04_consumption_mean_export__with_deg.yaml
-created_at: '2026-06-08T09:53:26.775695'
+created_at: '2026-07-29T22:20:10.713884'
 dt_hours: 0.25
 horizon: 2688
 start: 2025-01-01 00:00

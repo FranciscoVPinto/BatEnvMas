@@ -8,10 +8,19 @@ import yaml
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
-    """Recursive merge: dicts merge key-wise, scalars from `override` win."""
+    """Recursive merge: dicts merge key-wise, scalars from `override` win.
+
+    An explicit `null` in `override` DELETES the key from the merged result
+    (rather than setting it to None) — this is how a child case cancels a
+    key it inherited from a base via `extends:` (e.g. `data.pv_total: ~` to
+    switch from shared PV to per-house PV without leaving a dangling
+    `pv_total: null` alongside `pv:` in the merged config).
+    """
     out = dict(base or {})
     for k, v in (override or {}).items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
+        if v is None and k in out:
+            del out[k]
+        elif isinstance(v, dict) and isinstance(out.get(k), dict):
             out[k] = _deep_merge(out[k], v)
         else:
             out[k] = v

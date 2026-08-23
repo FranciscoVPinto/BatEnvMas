@@ -1,7 +1,7 @@
 case: b8_pv09_optimal_export__6months
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv09_optimal_export__6months.yaml
-created_at: '2026-06-09T05:08:09.884978'
+created_at: '2026-07-30T06:23:09.010991'
 dt_hours: 0.25
 horizon: 17280
 start: 2025-01-01 00:00
@@ -27,7 +27,7 @@ pv_info:
   mode: optimal_alpha
   pv_total_sum_kWh: 7835.758692763466
 solver_used: highs
-termination_condition: maxTimeLimit
+termination_condition: optimal
 debug:
   write_lp: true
   max_rows: 30

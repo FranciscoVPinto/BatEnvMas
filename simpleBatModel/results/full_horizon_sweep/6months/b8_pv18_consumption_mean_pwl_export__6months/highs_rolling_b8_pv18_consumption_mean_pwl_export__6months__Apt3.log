@@ -1,0 +1,2543 @@
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8598 cols, 22037 nonzeros 0s
+6419 rows, 7287 cols, 17745 nonzeros 0s
+4623 rows, 5760 cols, 13086 nonzeros 0s
+2700 rows, 3961 cols, 8028 nonzeros 0s
+1692 rows, 3095 cols, 5586 nonzeros 0s
+1547 rows, 2950 cols, 5296 nonzeros 0s
+Presolve reductions: rows 1547(-9206); columns 2950(-6459); nonzeros 5296(-20241) 
+
+Solving MIP model with:
+   1547 rows
+   2950 cols (200 binary, 0 integer, 0 implied int., 2750 continuous, 0 domain fixed)
+   5296 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            3.192851555        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.1657517553   2.704041606      106.13%        0      0      0       806     0.5s
+         1       0         1 100.00%   2.704041606     2.704041606        0.00%        0      0      0       806     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      2.70404160642
+  Dual bound        2.70404160642
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0331452719448
+  Solution status   feasible
+                    2.70404160642 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.47
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     806
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8601 cols, 22040 nonzeros 0s
+6426 rows, 7297 cols, 17762 nonzeros 0s
+4648 rows, 5790 cols, 13141 nonzeros 0s
+2723 rows, 3998 cols, 8088 nonzeros 0s
+1649 rows, 3043 cols, 5455 nonzeros 0s
+1499 rows, 2893 cols, 5155 nonzeros 0s
+Presolve reductions: rows 1499(-9254); columns 2893(-6516); nonzeros 5155(-20382) 
+
+Solving MIP model with:
+   1499 rows
+   2893 cols (191 binary, 0 integer, 0 implied int., 2702 continuous, 0 domain fixed)
+   5155 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            4.895836459        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -0.1163702042   4.377127405      102.66%        0      0      0       781     0.6s
+         1       0         1 100.00%   4.377127405     4.377127405        0.00%        0      0      0       781     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      4.37712740536
+  Dual bound        4.37712740536
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.031858189196
+  Solution status   feasible
+                    4.37712740536 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.56
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     781
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8609 cols, 22048 nonzeros 0s
+6441 rows, 7320 cols, 17800 nonzeros 0s
+4703 rows, 5859 cols, 13265 nonzeros 0s
+2817 rows, 4154 cols, 8338 nonzeros 0s
+2628 rows, 3242 cols, 5791 nonzeros 0s
+1285 rows, 2851 cols, 4539 nonzeros 0s
+1019 rows, 2495 cols, 3917 nonzeros 0s
+Presolve reductions: rows 1019(-9734); columns 2495(-6914); nonzeros 3917(-21620) 
+
+Solving MIP model with:
+   1019 rows
+   2495 cols (101 binary, 0 integer, 0 implied int., 2394 continuous, 0 domain fixed)
+   3917 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            6.136172314        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   0.8676112767    5.983903107       85.50%        0      0      0       593     0.5s
+         1       0         1 100.00%   5.983903107     5.983903107        0.00%        0      0      0       593     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      5.98390310706
+  Dual bound        5.98390310706
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0171854771027
+  Solution status   feasible
+                    5.98390310706 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.47
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     593
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8617 cols, 22056 nonzeros 0s
+6421 rows, 7308 cols, 17764 nonzeros 0s
+4619 rows, 5776 cols, 13079 nonzeros 0s
+2699 rows, 3981 cols, 8023 nonzeros 0s
+1548 rows, 2905 cols, 5134 nonzeros 0s
+1346 rows, 2580 cols, 4607 nonzeros 0s
+Presolve reductions: rows 1346(-9407); columns 2580(-6829); nonzeros 4607(-20930) 
+
+Solving MIP model with:
+   1346 rows
+   2580 cols (171 binary, 0 integer, 0 implied int., 2409 continuous, 0 domain fixed)
+   4607 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            4.222976668        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   0.6696561926    3.924142219       82.93%        0      0      0       646     0.5s
+         1       0         1 100.00%   3.924142219     3.924142219        0.00%        0      0      0       646     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      3.92414221937
+  Dual bound        3.92414221937
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0183115325924
+  Solution status   feasible
+                    3.92414221937 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.53
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     646
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [1e-04, 2e+00]
+Presolving model
+8064 rows, 8611 cols, 22050 nonzeros 0s
+6381 rows, 7262 cols, 17678 nonzeros 0s
+4527 rows, 5655 cols, 12869 nonzeros 0s
+4376 rows, 4236 cols, 9282 nonzeros 0s
+2527 rows, 3698 cols, 7574 nonzeros 0s
+2165 rows, 3268 cols, 6746 nonzeros 0s
+Presolve reductions: rows 2165(-8588); columns 3268(-6141); nonzeros 6746(-18791) 
+
+Solving MIP model with:
+   2165 rows
+   3268 cols (329 binary, 0 integer, 0 implied int., 2939 continuous, 0 domain fixed)
+   6746 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.873720872        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -0.061685038    1.303643422      104.73%        0      0      0       816     0.5s
+         1       0         1 100.00%   1.303643422     1.303643422        0.00%        0      0      0       816     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      1.30364342237
+  Dual bound        1.30364342237
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0327199860283
+  Solution status   feasible
+                    1.30364342237 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.54
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     816
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [1e-04, 2e+00]
+Presolving model
+8064 rows, 8635 cols, 22074 nonzeros 0s
+6377 rows, 7282 cols, 17698 nonzeros 0s
+4545 rows, 5695 cols, 12943 nonzeros 0s
+2719 rows, 3904 cols, 8110 nonzeros 0s
+2463 rows, 3648 cols, 7598 nonzeros 0s
+Presolve reductions: rows 2463(-8290); columns 3648(-5761); nonzeros 7598(-17939) 
+
+Solving MIP model with:
+   2463 rows
+   3648 cols (372 binary, 0 integer, 0 implied int., 3276 continuous, 0 domain fixed)
+   7598 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.339832885        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.5745998128   0.0864493703     764.67%        0      0      0       998     0.5s
+         1       0         1 100.00%   0.0864493703    0.0864493703       0.00%        0      0      0       998     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.0864493703153
+  Dual bound        0.0864493703153
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0670289191628
+  Solution status   feasible
+                    0.0864493703153 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.49
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     998
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8674 cols, 22113 nonzeros 0s
+6400 rows, 7344 cols, 17783 nonzeros 0s
+4587 rows, 5786 cols, 13076 nonzeros 0s
+2659 rows, 3936 cols, 7974 nonzeros 0s
+2382 rows, 3659 cols, 7420 nonzeros 0s
+Presolve reductions: rows 2382(-8371); columns 3659(-5750); nonzeros 7420(-18117) 
+
+Solving MIP model with:
+   2382 rows
+   3659 cols (345 binary, 0 integer, 0 implied int., 3314 continuous, 0 domain fixed)
+   7420 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.847979991        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.5281770665   0.4079560652     229.47%        0      0      0      1027     0.4s
+         1       0         1 100.00%   0.4079560652    0.4079560652       0.00%        0      0      0      1027     0.4s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.407956065225
+  Dual bound        0.407956065225
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.050883858458
+  Solution status   feasible
+                    0.407956065225 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.45
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1027
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8692 cols, 22131 nonzeros 0s
+6393 rows, 7355 cols, 17787 nonzeros 0s
+4585 rows, 5795 cols, 13083 nonzeros 0s
+2840 rows, 4073 cols, 8452 nonzeros 0s
+2600 rows, 3833 cols, 7972 nonzeros 0s
+Presolve reductions: rows 2600(-8153); columns 3833(-5576); nonzeros 7972(-17565) 
+
+Solving MIP model with:
+   2600 rows
+   3833 cols (385 binary, 0 integer, 0 implied int., 3448 continuous, 0 domain fixed)
+   7972 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            2.00443419         Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.5438593892   0.4902738594     210.93%        0      0      0      1086     0.5s
+         1       0         1 100.00%   0.4902738594    0.4902738594       0.00%        0      0      0      1086     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.490273859378
+  Dual bound        0.490273859378
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0529078378157
+  Solution status   feasible
+                    0.490273859378 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.50
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1086
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8707 cols, 22146 nonzeros 0s
+6397 rows, 7374 cols, 17810 nonzeros 0s
+4586 rows, 5810 cols, 13099 nonzeros 0s
+2905 rows, 4163 cols, 8643 nonzeros 0s
+2658 rows, 3916 cols, 8149 nonzeros 0s
+Presolve reductions: rows 2658(-8095); columns 3916(-5493); nonzeros 8149(-17388) 
+
+Solving MIP model with:
+   2658 rows
+   3916 cols (394 binary, 0 integer, 0 implied int., 3522 continuous, 0 domain fixed)
+   8149 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.87196503         Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.6648582652   0.4209639168     257.94%        0      0      0      1108     0.4s
+         1       0         1 100.00%   0.4209639168    0.4209639168       0.00%        0      0      0      1108     0.4s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.420963916793
+  Dual bound        0.420963916793
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.05282251141
+  Solution status   feasible
+                    0.420963916793 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.44
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1108
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8724 cols, 22163 nonzeros 0s
+6385 rows, 7379 cols, 17803 nonzeros 0s
+4556 rows, 5792 cols, 13051 nonzeros 0s
+3065 rows, 4269 cols, 9061 nonzeros 0s
+2853 rows, 4057 cols, 8637 nonzeros 0s
+Presolve reductions: rows 2853(-7900); columns 4057(-5352); nonzeros 8637(-16900) 
+
+Solving MIP model with:
+   2853 rows
+   4057 cols (432 binary, 0 integer, 0 implied int., 3625 continuous, 0 domain fixed)
+   8637 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.462030711        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.8886502066   -0.0797690093   1014.03%        0      0      0      1163     0.5s
+         1       0         1 100.00%   -0.0797690093   -0.0797690093      0.00%        0      0      0      1163     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.0797690092842
+  Dual bound        -0.0797690092842
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0723211348263
+  Solution status   feasible
+                    -0.0797690092842 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.46
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1163
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-04, 2e+00]
+Presolving model
+8064 rows, 8744 cols, 22183 nonzeros 0s
+6392 rows, 7406 cols, 17837 nonzeros 0s
+4562 rows, 5819 cols, 13084 nonzeros 0s
+3197 rows, 4397 cols, 9421 nonzeros 0s
+3007 rows, 4207 cols, 9041 nonzeros 0s
+Presolve reductions: rows 3007(-7746); columns 4207(-5202); nonzeros 9041(-16496) 
+
+Solving MIP model with:
+   3007 rows
+   4207 cols (457 binary, 0 integer, 0 implied int., 3750 continuous, 0 domain fixed)
+   9041 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.097582597        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -1.105812765    -0.5146616426    114.86%        0      0      0      1228     0.5s
+         1       0         1 100.00%   -0.5146616426   -0.5146616426      0.00%        0      0      0      1228     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.514661642574
+  Dual bound        -0.514661642574
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0966083359834
+  Solution status   feasible
+                    -0.514661642574 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.50
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1228
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8764 cols, 22203 nonzeros 0s
+6393 rows, 7427 cols, 17859 nonzeros 0s
+4575 rows, 5849 cols, 13127 nonzeros 0s
+3209 rows, 4430 cols, 9458 nonzeros 0s
+3026 rows, 4247 cols, 9092 nonzeros 0s
+Presolve reductions: rows 3026(-7727); columns 4247(-5162); nonzeros 9092(-16445) 
+
+Solving MIP model with:
+   3026 rows
+   4247 cols (455 binary, 0 integer, 0 implied int., 3792 continuous, 0 domain fixed)
+   9092 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.8768496547       Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -1.179876123    -0.6127517263     92.55%        0      0      0      1249     0.5s
+         1       0         1 100.00%   -0.6127517263   -0.6127517263      0.00%        0      0      0      1249     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.612751726278
+  Dual bound        -0.612751726278
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.110389232058
+  Solution status   feasible
+                    -0.612751726278 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.50
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1249
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8776 cols, 22215 nonzeros 0s
+6402 rows, 7448 cols, 17889 nonzeros 0s
+4596 rows, 5889 cols, 13188 nonzeros 0s
+3231 rows, 4500 cols, 9546 nonzeros 0s
+3039 rows, 4308 cols, 9162 nonzeros 0s
+Presolve reductions: rows 3039(-7714); columns 4308(-5101); nonzeros 9162(-16375) 
+
+Solving MIP model with:
+   3039 rows
+   4308 cols (454 binary, 0 integer, 0 implied int., 3854 continuous, 0 domain fixed)
+   9162 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.083319763        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -1.033936196    -0.4372122974    136.48%        0      0      0      1277     0.5s
+         1       0         1 100.00%   -0.4372122974   -0.4372122974      0.00%        0      0      0      1277     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.437212297399
+  Dual bound        -0.437212297399
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.104859215974
+  Solution status   feasible
+                    -0.437212297399 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.49
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1277
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-04, 2e+00]
+Presolving model
+8064 rows, 8786 cols, 22225 nonzeros 0s
+6398 rows, 7454 cols, 17891 nonzeros 0s
+4571 rows, 5868 cols, 13142 nonzeros 0s
+3354 rows, 4573 cols, 9858 nonzeros 0s
+3190 rows, 4409 cols, 9530 nonzeros 0s
+Presolve reductions: rows 3190(-7563); columns 4409(-5000); nonzeros 9530(-16007) 
+
+Solving MIP model with:
+   3190 rows
+   4409 cols (483 binary, 0 integer, 0 implied int., 3926 continuous, 0 domain fixed)
+   9530 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.085459027        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.9317169963   -0.3259270219    185.87%        0      0      0      1313     0.5s
+         1       0         1 100.00%   -0.3259270219   -0.3259270219      0.00%        0      0      0      1313     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.325927021947
+  Dual bound        -0.325927021947
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.104195234993
+  Solution status   feasible
+                    -0.325927021947 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.51
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1313
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [1e-04, 2e+00]
+Presolving model
+8064 rows, 8808 cols, 22247 nonzeros 0s
+6392 rows, 7470 cols, 17901 nonzeros 0s
+4557 rows, 5878 cols, 13138 nonzeros 0s
+3536 rows, 4704 cols, 10335 nonzeros 0s
+3409 rows, 4577 cols, 10081 nonzeros 0s
+Presolve reductions: rows 3409(-7344); columns 4577(-4832); nonzeros 10081(-15456) 
+
+Solving MIP model with:
+   3409 rows
+   4577 cols (524 binary, 0 integer, 0 implied int., 4053 continuous, 0 domain fixed)
+   10081 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.8765086143       Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -1.044460195    -0.5077918521    105.69%        0      0      0      1364     0.5s
+         1       0         1 100.00%   -0.5077918521   -0.5077918521      0.00%        0      0      0      1364     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.507791852127
+  Dual bound        -0.507791852127
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.125170660493
+  Solution status   feasible
+                    -0.507791852127 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.49
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1364
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8828 cols, 22267 nonzeros 0s
+6378 rows, 7476 cols, 17893 nonzeros 0s
+4547 rows, 5871 cols, 13121 nonzeros 0s
+3673 rows, 4838 cols, 10710 nonzeros 0s
+3566 rows, 4731 cols, 10496 nonzeros 0s
+Presolve reductions: rows 3566(-7187); columns 4731(-4678); nonzeros 10496(-15041) 
+
+Solving MIP model with:
+   3566 rows
+   4731 cols (550 binary, 0 integer, 0 implied int., 4181 continuous, 0 domain fixed)
+   10496 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.7860975982       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.18841006     -0.6392018887     85.92%        0      0      0      1427     0.6s
+         1       0         1 100.00%   -0.6392018887   -0.6392018887      0.00%        0      0      0      1427     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.639201888716
+  Dual bound        -0.639201888716
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.155951905903
+  Solution status   feasible
+                    -0.639201888716 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.57
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1427
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8843 cols, 22282 nonzeros 0s
+6374 rows, 7487 cols, 17900 nonzeros 0s
+4513 rows, 5847 cols, 13063 nonzeros 0s
+3833 rows, 4926 cols, 11146 nonzeros 0s
+3797 rows, 4890 cols, 11074 nonzeros 0s
+Presolve reductions: rows 3797(-6956); columns 4890(-4519); nonzeros 11074(-14463) 
+
+Solving MIP model with:
+   3797 rows
+   4890 cols (597 binary, 0 integer, 0 implied int., 4293 continuous, 0 domain fixed)
+   11074 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.4990940444       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.486499839    -0.9687637963     53.44%        0      0      0      1461     0.5s
+         1       0         1 100.00%   -0.9687637963   -0.9687637963      0.00%        0      0      0      1461     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.968763796284
+  Dual bound        -0.968763796284
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.244040066138
+  Solution status   feasible
+                    -0.968763796284 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.53
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1461
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8854 cols, 22293 nonzeros 0s
+6373 rows, 7497 cols, 17909 nonzeros 0s
+4525 rows, 5868 cols, 13096 nonzeros 0s
+3820 rows, 4938 cols, 11125 nonzeros 0s
+3784 rows, 4902 cols, 11053 nonzeros 0s
+Presolve reductions: rows 3784(-6969); columns 4902(-4507); nonzeros 11053(-14484) 
+
+Solving MIP model with:
+   3784 rows
+   4902 cols (592 binary, 0 integer, 0 implied int., 4310 continuous, 0 domain fixed)
+   11053 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.5176117194       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.435454927    -0.9363472382     53.30%        0      0      0      1467     0.5s
+         1       0         1 100.00%   -0.9363472382   -0.9363472382      0.00%        0      0      0      1467     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.936347238151
+  Dual bound        -0.936347238151
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.26455423081
+  Solution status   feasible
+                    -0.936347238151 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.55
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1467
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8869 cols, 22308 nonzeros 0s
+6385 rows, 7524 cols, 17948 nonzeros 0s
+4539 rows, 5904 cols, 13146 nonzeros 0s
+3836 rows, 4983 cols, 11198 nonzeros 0s
+3789 rows, 4936 cols, 11104 nonzeros 0s
+Presolve reductions: rows 3789(-6964); columns 4936(-4473); nonzeros 11104(-14433) 
+
+Solving MIP model with:
+   3789 rows
+   4936 cols (595 binary, 0 integer, 0 implied int., 4341 continuous, 0 domain fixed)
+   11104 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.4090896478       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.461516603    -1.041171099      40.37%        0      0      0      1467     0.5s
+         1       0         1 100.00%   -1.041171099    -1.041171099       0.00%        0      0      0      1467     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -1.04117109907
+  Dual bound        -1.04117109907
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.276821719301
+  Solution status   feasible
+                    -1.04117109907 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.55
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1467
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-04, 2e+00]
+Presolving model
+8064 rows, 8887 cols, 22326 nonzeros 0s
+6365 rows, 7522 cols, 17926 nonzeros 0s
+4505 rows, 5874 cols, 13082 nonzeros 0s
+4268 rows, 5304 cols, 12275 nonzeros 0s
+Presolve reductions: rows 4268(-6485); columns 5304(-4105); nonzeros 12275(-13262) 
+
+Solving MIP model with:
+   4268 rows
+   5304 cols (676 binary, 0 integer, 0 implied int., 4628 continuous, 0 domain fixed)
+   12275 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+         0       0         0   0.00%   -2.754301135    inf                  inf        0      0      0         0     0.5s
+         0       0         0   0.00%   -1.434053323    inf                  inf        0      0      2      1838     0.5s
+ R       0       0         0   0.00%   -1.434053323    -1.434053323       0.00%        0      0      2      1869     0.6s
+         1       0         1 100.00%   -1.434053323    -1.434053323       0.00%        0      0      2      1869     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -1.43405332262
+  Dual bound        -1.43405332262
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0
+  Solution status   feasible
+                    -1.43405332262 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.61
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1869
+                    0 (strong br.)
+                    31 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8895 cols, 22334 nonzeros 0s
+6370 rows, 7535 cols, 17944 nonzeros 0s
+4510 rows, 5888 cols, 13101 nonzeros 0s
+4271 rows, 5320 cols, 12294 nonzeros 0s
+Presolve reductions: rows 4271(-6482); columns 5320(-4089); nonzeros 12294(-13243) 
+
+Solving MIP model with:
+   4271 rows
+   5320 cols (676 binary, 0 integer, 0 implied int., 4644 continuous, 0 domain fixed)
+   12294 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+         0       0         0   0.00%   -2.67651324     inf                  inf        0      0      0         0     0.5s
+         0       0         0   0.00%   -1.462913674    inf                  inf        0      0      2      1809     0.6s
+ R       0       0         0   0.00%   -1.462913674    -1.462913674       0.00%        0      0      2      1836     0.6s
+         1       0         1 100.00%   -1.462913674    -1.462913674       0.00%        0      0      2      1836     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -1.46291367354
+  Dual bound        -1.46291367354
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      2.37721654412e-19
+  Solution status   feasible
+                    -1.46291367354 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.61
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1836
+                    0 (strong br.)
+                    27 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8904 cols, 22343 nonzeros 0s
+6375 rows, 7549 cols, 17963 nonzeros 0s
+4525 rows, 5914 cols, 13142 nonzeros 0s
+4086 rows, 5195 cols, 11852 nonzeros 0s
+Presolve reductions: rows 4086(-6667); columns 5195(-4214); nonzeros 11852(-13685) 
+
+Solving MIP model with:
+   4086 rows
+   5195 cols (643 binary, 0 integer, 0 implied int., 4552 continuous, 0 domain fixed)
+   11852 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.2266184572       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.77018117     -1.281760345      38.11%        0      0      0      1567     0.6s
+         1       0         1 100.00%   -1.281760345    -1.281760345       0.00%        0      0      0      1567     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -1.28176034549
+  Dual bound        -1.28176034549
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.724086718375
+  Solution status   feasible
+                    -1.28176034549 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.61
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1567
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8914 cols, 22353 nonzeros 0s
+6374 rows, 7558 cols, 17971 nonzeros 0s
+4519 rows, 5919 cols, 13141 nonzeros 0s
+4241 rows, 5317 cols, 12233 nonzeros 0s
+Presolve reductions: rows 4241(-6512); columns 5317(-4092); nonzeros 12233(-13304) 
+
+Solving MIP model with:
+   4241 rows
+   5317 cols (669 binary, 0 integer, 0 implied int., 4648 continuous, 0 domain fixed)
+   12233 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+         0       0         0   0.00%   -2.076874525    inf                  inf        0      0      0         0     0.5s
+         0       0         0   0.00%   -1.316964746    inf                  inf        0      0      2      1667     0.6s
+ R       0       0         0   0.00%   -1.316964746    -1.316964746       0.00%        0      0      2      1675     0.6s
+         1       0         1 100.00%   -1.316964746    -1.316964746       0.00%        0      0      2      1675     0.7s
+
+Solving report
+  Status            Optimal
+  Primal bound      -1.31696474627
+  Dual bound        -1.31696474627
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      2.22246129008e-18
+  Solution status   feasible
+                    -1.31696474627 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.65
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1675
+                    0 (strong br.)
+                    8 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8907 cols, 22346 nonzeros 0s
+6384 rows, 7561 cols, 17984 nonzeros 0s
+4541 rows, 5939 cols, 13183 nonzeros 0s
+4018 rows, 5154 cols, 11683 nonzeros 0s
+Presolve reductions: rows 4018(-6735); columns 5154(-4255); nonzeros 11683(-13854) 
+
+Solving MIP model with:
+   4018 rows
+   5154 cols (628 binary, 0 integer, 0 implied int., 4526 continuous, 0 domain fixed)
+   11683 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.6661534895       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.596734976    -1.051723641      51.82%        0      0      0      1567     0.5s
+         1       0         1 100.00%   -1.051723641    -1.051723641       0.00%        0      0      0      1567     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -1.05172364126
+  Dual bound        -1.05172364126
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.236235261932
+  Solution status   feasible
+                    -1.05172364126 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.54
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1567
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10754 rows; 9409 cols; 25538 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8950 cols, 22389 nonzeros 0s
+6386 rows, 7606 cols, 18031 nonzeros 0s
+4557 rows, 5987 cols, 13247 nonzeros 0s
+4216 rows, 5378 cols, 12221 nonzeros 0s
+Presolve reductions: rows 4216(-6538); columns 5378(-4031); nonzeros 12221(-13317) 
+
+Solving MIP model with:
+   4216 rows
+   5378 cols (657 binary, 0 integer, 0 implied int., 4721 continuous, 0 domain fixed)
+   12221 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+         0       0         0   0.00%   -1.24941994     inf                  inf        0      0      0         0     0.6s
+ T       0       0         0   0.00%   -1.24941994     -0.6901492114     81.04%        0      0      0      1650     0.7s
+         1       0         1 100.00%   -0.6901492114   -0.6901492114      0.00%        0      0      0      1650     0.7s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.690149211366
+  Dual bound        -0.690149211366
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      6.15064878843e-05
+  Solution status   feasible
+                    -0.690149211366 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.70
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1650
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8598 cols, 22037 nonzeros 0s
+6419 rows, 7287 cols, 17745 nonzeros 0s
+4623 rows, 5760 cols, 13086 nonzeros 0s
+2699 rows, 3961 cols, 8027 nonzeros 0s
+1691 rows, 3095 cols, 5585 nonzeros 0s
+1547 rows, 2951 cols, 5297 nonzeros 0s
+Presolve reductions: rows 1547(-9206); columns 2951(-6458); nonzeros 5297(-20240) 
+
+Solving MIP model with:
+   1547 rows
+   2951 cols (200 binary, 0 integer, 0 implied int., 2751 continuous, 0 domain fixed)
+   5297 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            3.239435518        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   0.3949102491    3.029449292       86.96%        0      0      0       826     0.6s
+         1       0         1 100.00%   3.029449292     3.029449292        0.00%        0      0      0       826     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      3.02944929227
+  Dual bound        3.02944929227
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0263921278721
+  Solution status   feasible
+                    3.02944929227 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.58
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     826
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8601 cols, 22040 nonzeros 0s
+6413 rows, 7284 cols, 17732 nonzeros 0s
+4613 rows, 5750 cols, 13047 nonzeros 0s
+2656 rows, 3897 cols, 7888 nonzeros 0s
+1637 rows, 3021 cols, 5419 nonzeros 0s
+1499 rows, 2883 cols, 5143 nonzeros 0s
+Presolve reductions: rows 1499(-9254); columns 2883(-6526); nonzeros 5143(-20394) 
+
+Solving MIP model with:
+   1499 rows
+   2883 cols (191 binary, 0 integer, 0 implied int., 2692 continuous, 0 domain fixed)
+   5143 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            4.899245079        Large        0      0      0         0     0.7s
+ T       0       0         0   0.00%   0.4778709283    4.685108586       89.80%        0      0      0       817     0.7s
+         1       0         1 100.00%   4.685108586     4.685108586        0.00%        0      0      0       817     0.7s
+
+Solving report
+  Status            Optimal
+  Primal bound      4.68510858551
+  Dual bound        4.68510858551
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0248132160687
+  Solution status   feasible
+                    4.68510858551 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.70
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     817
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8609 cols, 22048 nonzeros 0s
+6441 rows, 7320 cols, 17800 nonzeros 0s
+4703 rows, 5859 cols, 13265 nonzeros 0s
+2817 rows, 4154 cols, 8338 nonzeros 0s
+2628 rows, 3242 cols, 5791 nonzeros 0s
+1285 rows, 2851 cols, 4539 nonzeros 0s
+1019 rows, 2495 cols, 3917 nonzeros 0s
+Presolve reductions: rows 1019(-9734); columns 2495(-6914); nonzeros 3917(-21620) 
+
+Solving MIP model with:
+   1019 rows
+   2495 cols (101 binary, 0 integer, 0 implied int., 2394 continuous, 0 domain fixed)
+   3917 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            6.176350848        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   1.399132023     6.112948406       77.11%        0      0      0       667     0.5s
+         1       0         1 100.00%   6.112948406     6.112948406        0.00%        0      0      0       667     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      6.11294840642
+  Dual bound        6.11294840642
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0155318924283
+  Solution status   feasible
+                    6.11294840642 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.49
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     667
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8617 cols, 22056 nonzeros 0s
+6430 rows, 7317 cols, 17786 nonzeros 0s
+4664 rows, 5824 cols, 13191 nonzeros 0s
+2766 rows, 4067 cols, 8200 nonzeros 0s
+1550 rows, 2911 cols, 5144 nonzeros 0s
+1348 rows, 2595 cols, 4626 nonzeros 0s
+Presolve reductions: rows 1348(-9405); columns 2595(-6814); nonzeros 4626(-20911) 
+
+Solving MIP model with:
+   1348 rows
+   2595 cols (171 binary, 0 integer, 0 implied int., 2424 continuous, 0 domain fixed)
+   4626 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            4.24318456         Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   1.069654587     4.117645197       74.02%        0      0      0       684     0.5s
+         1       0         1 100.00%   4.117645197     4.117645197        0.00%        0      0      0       684     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      4.11764519655
+  Dual bound        4.11764519655
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0179167687255
+  Solution status   feasible
+                    4.11764519655 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.46
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     684
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [5e-03, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [1e-04, 2e+00]
+Presolving model
+8064 rows, 8611 cols, 22050 nonzeros 0s
+6381 rows, 7262 cols, 17678 nonzeros 0s
+4527 rows, 5656 cols, 12870 nonzeros 0s
+4376 rows, 4237 cols, 9283 nonzeros 0s
+2527 rows, 3699 cols, 7575 nonzeros 0s
+2165 rows, 3269 cols, 6747 nonzeros 0s
+Presolve reductions: rows 2165(-8588); columns 3269(-6140); nonzeros 6747(-18790) 
+
+Solving MIP model with:
+   2165 rows
+   3269 cols (329 binary, 0 integer, 0 implied int., 2940 continuous, 0 domain fixed)
+   6747 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.887471062        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   0.1857514446    1.56115935        88.10%        0      0      0       829     0.5s
+         1       0         1 100.00%   1.56115935      1.56115935         0.00%        0      0      0       829     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      1.56115935042
+  Dual bound        1.56115935042
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0260232404489
+  Solution status   feasible
+                    1.56115935042 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.53
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     829
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [5e-03, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [1e-04, 2e+00]
+Presolving model
+8064 rows, 8635 cols, 22074 nonzeros 0s
+6377 rows, 7282 cols, 17698 nonzeros 0s
+4545 rows, 5696 cols, 12944 nonzeros 0s
+2714 rows, 3885 cols, 8086 nonzeros 0s
+2461 rows, 3632 cols, 7580 nonzeros 0s
+Presolve reductions: rows 2461(-8292); columns 3632(-5777); nonzeros 7580(-17957) 
+
+Solving MIP model with:
+   2461 rows
+   3632 cols (372 binary, 0 integer, 0 implied int., 3260 continuous, 0 domain fixed)
+   7580 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.331830691        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.272405554    0.6838453252     139.83%        0      0      0       996     0.4s
+         1       0         1 100.00%   0.6838453252    0.6838453252       0.00%        0      0      0       996     0.4s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.683845325158
+  Dual bound        0.683845325158
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0460752023704
+  Solution status   feasible
+                    0.683845325158 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.44
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     996
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [5e-03, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8674 cols, 22113 nonzeros 0s
+6399 rows, 7343 cols, 17781 nonzeros 0s
+4587 rows, 5788 cols, 13078 nonzeros 0s
+2654 rows, 3934 cols, 7967 nonzeros 0s
+2376 rows, 3656 cols, 7411 nonzeros 0s
+Presolve reductions: rows 2376(-8377); columns 3656(-5753); nonzeros 7411(-18126) 
+
+Solving MIP model with:
+   2376 rows
+   3656 cols (345 binary, 0 integer, 0 implied int., 3311 continuous, 0 domain fixed)
+   7411 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.951551219        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.0968434947   1.202938644      108.05%        0      0      0      1020     0.5s
+         1       0         1 100.00%   1.202938644     1.202938644        0.00%        0      0      0      1020     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      1.20293864421
+  Dual bound        1.20293864421
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0457826176218
+  Solution status   feasible
+                    1.20293864421 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.48
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1020
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8692 cols, 22131 nonzeros 0s
+6393 rows, 7355 cols, 17787 nonzeros 0s
+4585 rows, 5795 cols, 13083 nonzeros 0s
+2847 rows, 4102 cols, 8488 nonzeros 0s
+2603 rows, 3858 cols, 8000 nonzeros 0s
+Presolve reductions: rows 2603(-8150); columns 3858(-5551); nonzeros 8000(-17537) 
+
+Solving MIP model with:
+   2603 rows
+   3858 cols (385 binary, 0 integer, 0 implied int., 3473 continuous, 0 domain fixed)
+   8000 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.979059985        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.1431821209   1.301220546      111.00%        0      0      0      1106     0.5s
+         1       0         1 100.00%   1.301220546     1.301220546        0.00%        0      0      0      1106     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      1.3012205464
+  Dual bound        1.3012205464
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.046274008791
+  Solution status   feasible
+                    1.3012205464 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.49
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1106
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8707 cols, 22146 nonzeros 0s
+6396 rows, 7373 cols, 17808 nonzeros 0s
+4583 rows, 5808 cols, 13094 nonzeros 0s
+2895 rows, 4139 cols, 8609 nonzeros 0s
+2655 rows, 3899 cols, 8129 nonzeros 0s
+Presolve reductions: rows 2655(-8098); columns 3899(-5510); nonzeros 8129(-17408) 
+
+Solving MIP model with:
+   2655 rows
+   3899 cols (394 binary, 0 integer, 0 implied int., 3505 continuous, 0 domain fixed)
+   8129 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.935758735        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.1539867255   1.232261347      112.50%        0      0      0      1124     0.5s
+         1       0         1 100.00%   1.232261347     1.232261347        0.00%        0      0      0      1124     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      1.23226134711
+  Dual bound        1.23226134711
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0437552209665
+  Solution status   feasible
+                    1.23226134711 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.48
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1124
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8724 cols, 22163 nonzeros 0s
+6385 rows, 7379 cols, 17803 nonzeros 0s
+4557 rows, 5796 cols, 13056 nonzeros 0s
+3065 rows, 4276 cols, 9068 nonzeros 0s
+2853 rows, 4064 cols, 8644 nonzeros 0s
+Presolve reductions: rows 2853(-7900); columns 4064(-5345); nonzeros 8644(-16893) 
+
+Solving MIP model with:
+   2853 rows
+   4064 cols (432 binary, 0 integer, 0 implied int., 3632 continuous, 0 domain fixed)
+   8644 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.522811793        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.4941344776   0.680605241      172.60%        0      0      0      1166     0.5s
+         1       0         1 100.00%   0.680605241     0.680605241        0.00%        0      0      0      1166     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.680605241037
+  Dual bound        0.680605241037
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0558544117053
+  Solution status   feasible
+                    0.680605241037 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.49
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1166
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-04, 2e+00]
+Presolving model
+8064 rows, 8744 cols, 22183 nonzeros 0s
+6377 rows, 7391 cols, 17803 nonzeros 0s
+4537 rows, 5787 cols, 13011 nonzeros 0s
+3184 rows, 4375 cols, 9384 nonzeros 0s
+2999 rows, 4190 cols, 9014 nonzeros 0s
+Presolve reductions: rows 2999(-7754); columns 4190(-5219); nonzeros 9014(-16523) 
+
+Solving MIP model with:
+   2999 rows
+   4190 cols (457 binary, 0 integer, 0 implied int., 3733 continuous, 0 domain fixed)
+   9014 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.044319296        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -0.7310369852   0.2571109717     384.33%        0      0      0      1213     0.5s
+         1       0         1 100.00%   0.2571109717    0.2571109717       0.00%        0      0      0      1213     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.257110971741
+  Dual bound        0.257110971741
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0819778252372
+  Solution status   feasible
+                    0.257110971741 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.54
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1213
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8764 cols, 22203 nonzeros 0s
+6393 rows, 7427 cols, 17859 nonzeros 0s
+4573 rows, 5849 cols, 13125 nonzeros 0s
+3213 rows, 4439 cols, 9471 nonzeros 0s
+3018 rows, 4229 cols, 9066 nonzeros 0s
+Presolve reductions: rows 3018(-7735); columns 4229(-5180); nonzeros 9066(-16471) 
+
+Solving MIP model with:
+   3018 rows
+   4229 cols (455 binary, 0 integer, 0 implied int., 3774 continuous, 0 domain fixed)
+   9066 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.9785511043       Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.7995592635   0.1432711704     658.07%        0      0      0      1239     0.5s
+         1       0         1 100.00%   0.1432711704    0.1432711704       0.00%        0      0      0      1239     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.14327117037
+  Dual bound        0.14327117037
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0960466300511
+  Solution status   feasible
+                    0.14327117037 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.49
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1239
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [3e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8776 cols, 22215 nonzeros 0s
+6402 rows, 7448 cols, 17889 nonzeros 0s
+4596 rows, 5890 cols, 13189 nonzeros 0s
+3221 rows, 4477 cols, 9513 nonzeros 0s
+3030 rows, 4286 cols, 9131 nonzeros 0s
+Presolve reductions: rows 3030(-7723); columns 4286(-5123); nonzeros 9131(-16406) 
+
+Solving MIP model with:
+   3030 rows
+   4286 cols (454 binary, 0 integer, 0 implied int., 3832 continuous, 0 domain fixed)
+   9131 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.088105696        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.6700155478   0.3522506881     290.21%        0      0      0      1265     0.5s
+         1       0         1 100.00%   0.3522506881    0.3522506881       0.00%        0      0      0      1265     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.352250688144
+  Dual bound        0.352250688144
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0764444140883
+  Solution status   feasible
+                    0.352250688144 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.50
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1265
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-04, 2e+00]
+Presolving model
+8064 rows, 8786 cols, 22225 nonzeros 0s
+6397 rows, 7453 cols, 17889 nonzeros 0s
+4568 rows, 5865 cols, 13136 nonzeros 0s
+3348 rows, 4558 cols, 9837 nonzeros 0s
+3184 rows, 4394 cols, 9509 nonzeros 0s
+Presolve reductions: rows 3184(-7569); columns 4394(-5015); nonzeros 9509(-16028) 
+
+Solving MIP model with:
+   3184 rows
+   4394 cols (483 binary, 0 integer, 0 implied int., 3911 continuous, 0 domain fixed)
+   9509 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            1.253394486        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.5862482684   0.4420804955     232.61%        0      0      0      1303     0.5s
+         1       0         1 100.00%   0.4420804955    0.4420804955       0.00%        0      0      0      1303     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.442080495487
+  Dual bound        0.442080495487
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.070714833358
+  Solution status   feasible
+                    0.442080495487 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.47
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1303
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [1e-04, 2e+00]
+Presolving model
+8064 rows, 8808 cols, 22247 nonzeros 0s
+6392 rows, 7470 cols, 17901 nonzeros 0s
+4553 rows, 5876 cols, 13132 nonzeros 0s
+3540 rows, 4714 cols, 10349 nonzeros 0s
+3409 rows, 4583 cols, 10087 nonzeros 0s
+Presolve reductions: rows 3409(-7344); columns 4583(-4826); nonzeros 10087(-15450) 
+
+Solving MIP model with:
+   3409 rows
+   4583 cols (524 binary, 0 integer, 0 implied int., 4059 continuous, 0 domain fixed)
+   10087 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.936259477        Large        0      0      0         0     0.4s
+ T       0       0         0   0.00%   -0.7213731283   0.1783986063     504.36%        0      0      0      1346     0.5s
+         1       0         1 100.00%   0.1783986063    0.1783986063       0.00%        0      0      0      1346     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.178398606333
+  Dual bound        0.178398606333
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.105013897574
+  Solution status   feasible
+                    0.178398606333 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.52
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1346
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8828 cols, 22267 nonzeros 0s
+6379 rows, 7477 cols, 17895 nonzeros 0s
+4539 rows, 5863 cols, 13105 nonzeros 0s
+3667 rows, 4824 cols, 10690 nonzeros 0s
+3560 rows, 4717 cols, 10476 nonzeros 0s
+Presolve reductions: rows 3560(-7193); columns 4717(-4692); nonzeros 10476(-15061) 
+
+Solving MIP model with:
+   3560 rows
+   4717 cols (550 binary, 0 integer, 0 implied int., 4167 continuous, 0 domain fixed)
+   10476 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.7964283974       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -0.8571486176   0.0673836303    1372.04%        0      0      0      1407     0.5s
+         1       0         1 100.00%   0.0673836303    0.0673836303       0.00%        0      0      0      1407     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.0673836302672
+  Dual bound        0.0673836302672
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.139025274615
+  Solution status   feasible
+                    0.0673836302672 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.55
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1407
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8843 cols, 22282 nonzeros 0s
+6374 rows, 7487 cols, 17900 nonzeros 0s
+4513 rows, 5847 cols, 13063 nonzeros 0s
+3829 rows, 4920 cols, 11136 nonzeros 0s
+3795 rows, 4886 cols, 11068 nonzeros 0s
+Presolve reductions: rows 3795(-6958); columns 4886(-4523); nonzeros 11068(-14469) 
+
+Solving MIP model with:
+   3795 rows
+   4886 cols (597 binary, 0 integer, 0 implied int., 4289 continuous, 0 domain fixed)
+   11068 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.5855108769       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.154158791    -0.2767458965    317.05%        0      0      0      1466     0.5s
+         1       0         1 100.00%   -0.2767458965   -0.2767458965      0.00%        0      0      0      1466     0.5s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.276745896484
+  Dual bound        -0.276745896484
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.169696262934
+  Solution status   feasible
+                    -0.276745896484 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.53
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1466
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8854 cols, 22293 nonzeros 0s
+6372 rows, 7496 cols, 17907 nonzeros 0s
+4523 rows, 5867 cols, 13093 nonzeros 0s
+3854 rows, 4962 cols, 11183 nonzeros 0s
+3778 rows, 4886 cols, 11031 nonzeros 0s
+Presolve reductions: rows 3778(-6975); columns 4886(-4523); nonzeros 11031(-14506) 
+
+Solving MIP model with:
+   3778 rows
+   4886 cols (592 binary, 0 integer, 0 implied int., 4294 continuous, 0 domain fixed)
+   11031 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.5992434883       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.147569266    -0.2938135089    290.58%        0      0      0      1452     0.6s
+         1       0         1 100.00%   -0.2938135089   -0.2938135089      0.00%        0      0      0      1452     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.293813508858
+  Dual bound        -0.293813508858
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.186519993341
+  Solution status   feasible
+                    -0.293813508858 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.56
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1452
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8869 cols, 22308 nonzeros 0s
+6385 rows, 7524 cols, 17948 nonzeros 0s
+4541 rows, 5908 cols, 13152 nonzeros 0s
+3844 rows, 4994 cols, 11217 nonzeros 0s
+3806 rows, 4956 cols, 11141 nonzeros 0s
+Presolve reductions: rows 3806(-6947); columns 4956(-4453); nonzeros 11141(-14396) 
+
+Solving MIP model with:
+   3806 rows
+   4956 cols (595 binary, 0 integer, 0 implied int., 4361 continuous, 0 domain fixed)
+   11141 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.4455121442       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.207495018    -0.3674874083    228.58%        0      0      0      1476     0.6s
+         1       0         1 100.00%   -0.3674874083   -0.3674874083      0.00%        0      0      0      1476     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.367487408288
+  Dual bound        -0.367487408288
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.25098797801
+  Solution status   feasible
+                    -0.367487408288 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.56
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1476
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [2e-04, 2e+00]
+Presolving model
+8064 rows, 8887 cols, 22326 nonzeros 0s
+6363 rows, 7518 cols, 17920 nonzeros 0s
+4498 rows, 5854 cols, 13051 nonzeros 0s
+4249 rows, 5292 cols, 12226 nonzeros 0s
+Presolve reductions: rows 4249(-6504); columns 5292(-4117); nonzeros 12226(-13311) 
+
+Solving MIP model with:
+   4249 rows
+   5292 cols (672 binary, 0 integer, 0 implied int., 4620 continuous, 0 domain fixed)
+   12226 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+         0       0         0   0.00%   -2.48414283     inf                  inf        0      0      0         0     0.6s
+         0       0         0   0.00%   -0.861395057    inf                  inf        0      0      2      1747     0.6s
+ R       0       0         0   0.00%   -0.861395057    -0.861395057       0.00%        0      0      2      1774     0.7s
+         1       0         1 100.00%   -0.861395057    -0.861395057       0.00%        0      0      2      1774     0.7s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.861395057008
+  Dual bound        -0.861395057008
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0
+  Solution status   feasible
+                    -0.861395057008 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.68
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1774
+                    0 (strong br.)
+                    27 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8895 cols, 22334 nonzeros 0s
+6369 rows, 7532 cols, 17940 nonzeros 0s
+4497 rows, 5866 cols, 13062 nonzeros 0s
+4090 rows, 5158 cols, 11841 nonzeros 0s
+Presolve reductions: rows 4090(-6663); columns 5158(-4251); nonzeros 11841(-13696) 
+
+Solving MIP model with:
+   4090 rows
+   5158 cols (649 binary, 0 integer, 0 implied int., 4509 continuous, 0 domain fixed)
+   11841 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.0395143513       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.622009495    -0.8715964914     86.10%        0      0      0      1551     0.6s
+         1       0         1 100.00%   -0.8715964914   -0.8715964914      0.00%        0      0      0      1551     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.871596491422
+  Dual bound        -0.871596491422
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      2.85969173838
+  Solution status   feasible
+                    -0.871596491422 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.59
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1551
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8904 cols, 22343 nonzeros 0s
+6376 rows, 7550 cols, 17965 nonzeros 0s
+4524 rows, 5915 cols, 13142 nonzeros 0s
+4081 rows, 5184 cols, 11836 nonzeros 0s
+Presolve reductions: rows 4081(-6672); columns 5184(-4225); nonzeros 11836(-13701) 
+
+Solving MIP model with:
+   4081 rows
+   5184 cols (643 binary, 0 integer, 0 implied int., 4541 continuous, 0 domain fixed)
+   11836 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.3581727583       Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.45778708     -0.6245947198    133.40%        0      0      0      1557     0.6s
+         1       0         1 100.00%   -0.6245947198   -0.6245947198      0.00%        0      0      0      1557     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.624594719829
+  Dual bound        -0.624594719829
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.373270119901
+  Solution status   feasible
+                    -0.624594719829 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.56
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1557
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8914 cols, 22353 nonzeros 0s
+6374 rows, 7558 cols, 17971 nonzeros 0s
+4519 rows, 5917 cols, 13139 nonzeros 0s
+4232 rows, 5300 cols, 12207 nonzeros 0s
+Presolve reductions: rows 4232(-6521); columns 5300(-4109); nonzeros 12207(-13330) 
+
+Solving MIP model with:
+   4232 rows
+   5300 cols (669 binary, 0 integer, 0 implied int., 4631 continuous, 0 domain fixed)
+   12207 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+         0       0         0   0.00%   -1.754516606    inf                  inf        0      0      0         0     0.5s
+         0       0         0   0.00%   -0.6406943201   inf                  inf        0      0      2      1646     0.6s
+ R       0       0         0   0.00%   -0.6406943201   -0.6406943201      0.00%        0      0      2      1654     0.7s
+         1       0         1 100.00%   -0.6406943201   -0.6406943201      0.00%        0      0      2      1654     0.7s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.640694320107
+  Dual bound        -0.640694320107
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      1.43947314977e-18
+  Solution status   feasible
+                    -0.640694320107 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.72
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1654
+                    0 (strong br.)
+                    8 (separation)
+                    0 (heuristics)
+MIP has 10753 rows; 9409 cols; 25537 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8907 cols, 22346 nonzeros 0s
+6384 rows, 7561 cols, 17984 nonzeros 0s
+4537 rows, 5937 cols, 13177 nonzeros 0s
+4012 rows, 5143 cols, 11666 nonzeros 0s
+Presolve reductions: rows 4012(-6741); columns 5143(-4266); nonzeros 11666(-13871) 
+
+Solving MIP model with:
+   4012 rows
+   5143 cols (628 binary, 0 integer, 0 implied int., 4515 continuous, 0 domain fixed)
+   11666 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+ J       0       0         0   0.00%   -inf            0.538905883        Large        0      0      0         0     0.5s
+ T       0       0         0   0.00%   -1.295476314    -0.3697940526    250.32%        0      0      0      1542     0.6s
+         1       0         1 100.00%   -0.3697940526   -0.3697940526      0.00%        0      0      0      1542     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      -0.369794052577
+  Dual bound        -0.369794052577
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.232097415191
+  Solution status   feasible
+                    -0.369794052577 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.58
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1542
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)
+MIP has 10754 rows; 9409 cols; 25538 nonzeros; 1344 integer variables (1344 binary)
+Coefficient ranges:
+  Matrix  [2e-01, 1e+00]
+  Cost    [1e-02, 6e-02]
+  Bound   [1e+00, 1e+00]
+  RHS     [9e-05, 2e+00]
+WARNING: Problem has some excessively small row bounds
+Presolving model
+8064 rows, 8950 cols, 22389 nonzeros 0s
+6385 rows, 7605 cols, 18029 nonzeros 0s
+4559 rows, 5992 cols, 13254 nonzeros 0s
+4211 rows, 5370 cols, 12208 nonzeros 0s
+Presolve reductions: rows 4211(-6543); columns 5370(-4039); nonzeros 12208(-13330) 
+
+Solving MIP model with:
+   4211 rows
+   5370 cols (657 binary, 0 integer, 0 implied int., 4713 continuous, 0 domain fixed)
+   12208 nonzeros
+
+Src: B => Branching; C => Central rounding; F => Feasibility pump; H => Heuristic;
+     I => Shifting; J => Feasibility jump; L => Sub-MIP; P => Empty MIP; R => Randomized rounding;
+     S => Solve LP; T => Evaluate node; U => Unbounded; X => User solution; Y => HiGHS solution;
+     Z => ZI Round; l => Trivial lower; p => Trivial point; u => Trivial upper; z => Trivial zero
+
+        Nodes      |    B&B Tree     |            Objective Bounds              |  Dynamic Constraints |       Work      
+Src  Proc. InQueue |  Leaves   Expl. | BestBound       BestSol              Gap |   Cuts   InLp Confl. | LpIters     Time
+
+         0       0         0   0.00%   -0.9822295522   inf                  inf        0      0      0         0     0.6s
+ T       0       0         0   0.00%   -0.9822295522   0.00450940968      Large        0      0      0      1630     0.6s
+         1       0         1 100.00%   0.00450940968   0.00450940968      0.00%        0      0      0      1630     0.6s
+
+Solving report
+  Status            Optimal
+  Primal bound      0.00450940968117
+  Dual bound        0.00450940968117
+  Gap               0% (tolerance: 0.5%)
+  P-D integral      0.0203938152494
+  Solution status   feasible
+                    0.00450940968117 (objective)
+                    0 (bound viol.)
+                    0 (int. viol.)
+                    0 (row viol.)
+  Timing            0.63
+  Max sub-MIP depth 0
+  Nodes             1
+  Repair LPs        0
+  LP iterations     1630
+                    0 (strong br.)
+                    0 (separation)
+                    0 (heuristics)

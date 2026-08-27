@@ -4,21 +4,21 @@ runset:
   - runsets/runset_pwl_sweep.yaml
   - runsets/runset_pwl_validation.yaml
 
-# Para fechar as duas lacunas metodologicas identificadas na revisao da tese:
+# Bateria COMPLETA activa — para re-correr tudo de raiz numa pasta limpa:
 #
-#  1) Baseline controlado sem partilha (pv21, baterias REAIS) — ja incluido no
-#     full_horizon_sweep. Como o run_experiment salta corridas que ja tem
-#     meta.yaml (skip_existing), reactivar full_horizon_sweep corre APENAS os 4
-#     horizontes do pv21; os restantes 60 casos sao saltados.
+#   python scripts/run_experiment.py --outputs-dir results_v2 --no-skip-existing
+#   python scripts/compare_results.py results results_v2
 #
-#  2) Validacao exata-vs-rolling tambem para a alocacao optimal (pv19), a 3
-#     meses — pwl_validation passa a true e inclui pv15 + pv19.
+# O `--outputs-dir` redirige TODAS as saidas preservando o layout por runset,
+# sem tocar em `results/` (que sustenta os numeros do Capitulo 5). Só depois de
+# a comparacao dar dentro da tolerancia e que faz sentido substituir.
 #
-# Depois de correr, repor pwl_validation: false e (se quiser) desligar os outros.
+# `pwl_validation` fica a true por estar incluido na re-corrida completa; se so
+# quiser a bateria principal, ponha a false.
 enabled:
-  alfa_deg_sweep: false
+  alfa_deg_sweep: true
   full_horizon_sweep: true
-  pwl_sweep: false
+  pwl_sweep: true
   pwl_validation: true
 
 defaults:

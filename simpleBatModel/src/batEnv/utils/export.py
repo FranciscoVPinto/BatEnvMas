@@ -62,17 +62,6 @@ def multi_model_to_dataframes(m) -> Dict[str, pd.DataFrame]:
     return {str(h): _extract_house_dataframe(m, h) for h in list(m.H)}
 
 
-def model_to_dataframe(m, house_id=None) -> pd.DataFrame:
-    """Compatibilidade: exporta uma unica casa (primeira se house_id=None)."""
-    houses = list(getattr(m, "H", []))
-    if not houses:
-        raise ValueError("Expected a unified house-indexed model with set H.")
-    chosen = str(house_id) if house_id is not None else str(houses[0])
-    if chosen not in [str(h) for h in houses]:
-        raise KeyError(f"House '{chosen}' not found in model.")
-    return _extract_house_dataframe(m, chosen)
-
-
 def extract_pwl_metrics_dataframe(m) -> pd.DataFrame:
     """Extrai metricas PWL por casa de um modelo de degradacao PWL resolvido."""
     if not (hasattr(m, "K") and hasattr(m, "pwl_degradation_cost_EUR")):

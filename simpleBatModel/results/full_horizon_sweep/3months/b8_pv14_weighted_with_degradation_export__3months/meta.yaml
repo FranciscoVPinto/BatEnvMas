@@ -1,7 +1,7 @@
 case: b8_pv14_weighted_with_degradation_export__3months
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
-  Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv14_weighted_with_degradation_export__3months.yaml
-created_at: '2026-07-30T11:57:36.638333'
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\full_horizon_sweep\_sweep_tmp\b8_pv14_weighted_with_degradation_export__3months.yaml
+created_at: '2026-08-25T11:06:54.857475'
 dt_hours: 0.25
 horizon: 8640
 start: 2025-01-01 00:00

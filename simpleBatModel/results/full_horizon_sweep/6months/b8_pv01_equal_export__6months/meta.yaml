@@ -1,7 +1,7 @@
 case: b8_pv01_equal_export__6months
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
-  Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv01_equal_export__6months.yaml
-created_at: '2026-07-29T22:43:15.818500'
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\full_horizon_sweep\_sweep_tmp\b8_pv01_equal_export__6months.yaml
+created_at: '2026-08-24T21:48:47.899677'
 dt_hours: 0.25
 horizon: 17280
 start: 2025-01-01 00:00

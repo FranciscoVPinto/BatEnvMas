@@ -1,0 +1,45 @@
+# Ambiente Conda para o simpleBatModel.
+#
+# Criar:      conda env create -f environment.yml
+# Activar:    conda activate lbf
+# Actualizar: conda env update -f environment.yml --prune
+#
+# O solver usado é o HiGHS, através da interface `appsi_highs` do Pyomo, que vem
+# do pacote `highspy` (conda-forge). Sem `highspy` instalado, o `run_case.py` cai
+# para a cadeia de fallback (highs / cbc / glpk) e, se nenhum existir, falha com
+# uma mensagem explícita.
+#
+# NOTA sobre versões: os limites abaixo são deliberadamente largos, para o
+# ambiente ser recriável em máquinas diferentes. Para congelar as versões
+# exactas usadas nas corridas da dissertação, correr na máquina de origem:
+#     conda env export --no-builds > environment.lock.yml
+# e guardar esse ficheiro ao lado deste.
+
+name: lbf
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11
+
+  # --- Optimização ---
+  - pyomo>=6.7          # modelação algébrica (ConcreteModel, Constraint, Objective)
+  - highspy>=1.7        # solver HiGHS + interface appsi_highs
+
+  # --- Dados e cálculo ---
+  - pandas>=2.0         # séries temporais, leitura/escrita dos CSV de resultados
+  - numpy>=1.24         # métricas de comunidade (Gini, agregações)
+
+  # --- Configuração ---
+  - pyyaml>=6.0         # ficheiros de caso / runset / plotset
+  - jsonschema>=4.0     # validação do esquema dos YAML (io/case_schema.py)
+
+  # --- Gráficos ---
+  - matplotlib>=3.7     # batEnv.plotting (simple.py, compare.py)
+
+  # --- Ambiente de trabalho (opcional, mas é como o projecto é usado) ---
+  - spyder>=5.4
+
+  # --- Desenvolvimento / testes (opcional) ---
+  - pytest>=7.0

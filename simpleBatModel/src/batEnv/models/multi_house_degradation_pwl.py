@@ -235,9 +235,19 @@ class MultiHouseModelDegradationPWL:
                 for t in mm.T for k in mm.K
             ),
         )
+        # Tempo passado em cada bin de SoC, em HORAS (multiplicado por dt).
+        #
+        # ATENÇÃO: até à limpeza esta expressão somava apenas os binários `z`,
+        # ou seja devolvia um NÚMERO DE TIMESTEPS apesar de se chamar
+        # `bin_hours`. O caminho two-stage (run_case._solve_pwl_per_house), que
+        # é o único usado na prática, já multiplicava por `dt_hours` — logo as
+        # duas vias produziam unidades DIFERENTES na mesma coluna do CSV.
+        # Ficam agora ambas em horas. (Nenhum resultado publicado muda: o
+        # modelo monolítico nunca chega a ser construído, e a figura de ocupação
+        # de bins da dissertação usa fracções do total, que são invariantes.)
         m.bin_hours = pyo.Expression(
             m.H, m.K,
-            rule=lambda mm, h, k: sum(mm.z[h, t, k] for t in mm.T),
+            rule=lambda mm, h, k: sum(mm.z[h, t, k] for t in mm.T) * mm.dt,
         )
 
         return m

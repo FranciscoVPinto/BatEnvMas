@@ -6,7 +6,6 @@ import logging
 import shutil
 import sys
 from pathlib import Path
-from typing import Optional
 
 import yaml
 import pyomo.environ as pyo
@@ -30,12 +29,19 @@ from batEnv.io import (  # noqa: E402
     validate_case_cfg_basic,
     validate_case_cfg_schema,
 )
+from batEnv.io.loaders import _pad_or_trunc  # noqa: E402
+from batEnv.io.resampling import NATIVE_DT_HOURS, resample_factor, resample_series  # noqa: E402
+from batEnv.solving import (  # noqa: E402
+    ACCEPTABLE_TERMINATIONS,
+    handle_infeasible,
+    solve_model_safe,
+)
 from batEnv.models import (  # noqa: E402
     MultiHouseModel,
     MultiHouseModelDegradation,
     MultiHouseModelDegradationPWL,
 )
-from batEnv.utils.export import multi_model_to_dataframes, extract_pwl_metrics_dataframe  # noqa: E402
+from batEnv.utils.export import multi_model_to_dataframes  # noqa: E402
 
 
 logger = logging.getLogger(__name__)
@@ -44,38 +50,6 @@ logger = logging.getLogger(__name__)
 def _abs_from_root(p):
     p = Path(p)
     return p if p.is_absolute() else (ROOT / p).resolve()
-
-
-NATIVE_DT_HOURS = 0.25  # all input CSVs are recorded at 15-min (0.25 h) resolution
-
-
-def _pad_or_trunc(arr, T):
-    if len(arr) >= T:
-        return arr[:T]
-    if not arr:
-        return [0.0] * T
-    return arr + [arr[-1]] * (T - len(arr))
-
-
-def _resample_series(series: list, factor: int) -> list:
-    """
-    Down-sample a time series by averaging groups of `factor` consecutive values.
-
-    Suitable for power (kW) or price (EUR/kWh) series: averaging preserves the
-    correct kWh total when combined with the new (larger) dt.
-
-    Examples
-    --------
-    factor=4 : 15-min → 1-hour  (dt goes 0.25 → 1.0)
-    factor=2 : 15-min → 30-min
-    """
-    if factor <= 1:
-        return list(series)
-    n_full = (len(series) // factor) * factor
-    return [
-        sum(series[i: i + factor]) / factor
-        for i in range(0, n_full, factor)
-    ]
 
 
 def _apply_time_override(cfg, time_override):
@@ -116,227 +90,6 @@ def _load_loads(cfg, *, houses, T):
     return loads_by_house
 
 
-def _solver_available_local(name):
-    n = (name or "").strip().lower()
-    if n == "appsi_highs":
-        try:
-            import highspy  # noqa: F401
-            return True
-        except ImportError:
-            return False
-    if n == "highs":
-        return shutil.which("highs") is not None
-    if n == "glpk":
-        return shutil.which("glpsol") is not None
-    if n == "cbc":
-        return shutil.which("cbc") is not None
-    try:
-        opt = pyo.SolverFactory(n)
-    except Exception:
-        return False
-    return bool(opt) and opt.available(exception_flag=False)
-
-
-def _choose_solver_chain(preferred):
-    chain = [preferred] if preferred else []
-    for s in ("appsi_highs", "highs", "cbc", "glpk"):
-        if s not in chain:
-            chain.append(s)
-    return chain
-
-
-def _configure_highs_logging(opt):
-    if hasattr(opt, "config"):
-        try:
-            if hasattr(opt.config, "stream_solver"):
-                opt.config.stream_solver = True
-            if hasattr(opt.config, "logfile") and not getattr(opt.config, "logfile", None):
-                opt.config.logfile = "highs.log"
-        except AttributeError:
-            pass
-    if hasattr(opt, "options"):
-        try:
-            opt.options.setdefault("output_flag", True)
-            opt.options.setdefault("log_to_console", True)
-            opt.options.setdefault("log_file", "highs.log")
-            opt.options.setdefault("mip_min_logging_interval", 1)
-        except (AttributeError, TypeError):
-            pass
-
-
-def _configure_highs_file_log(opt, log_path):
-    """Write HiGHS's native solver log to `log_path`, independent of `tee`.
-
-    Does NOT echo to console (avoids flooding Spyder's output over long
-    rolling-horizon runs with hundreds of window solves) — the goal is to
-    always have the *last attempted* window's solver log on disk, so that if
-    a window fails we have the raw HiGHS diagnostic without needing to
-    re-run with tee=True.
-    """
-    if hasattr(opt, "options"):
-        try:
-            opt.options["output_flag"] = True
-            opt.options["log_to_console"] = False
-            opt.options["log_file"] = str(log_path)
-            opt.options.setdefault("mip_min_logging_interval", 1)
-        except (AttributeError, TypeError):
-            pass
-
-
-def _solve_model_safe(model, *, solver, options, tee, log_file=None):
-    chain = [s for s in _choose_solver_chain(solver) if _solver_available_local(s)]
-    if not chain:
-        raise RuntimeError(
-            "No solver available. Install one (recommended on conda):\n"
-            "  conda install -c conda-forge highspy\n"
-            "and set solver to 'appsi_highs'."
-        )
-    last_err = None
-    for s in chain:
-        try:
-            opt = pyo.SolverFactory(s)
-            if opt is None:
-                continue
-            if options and hasattr(opt, "options"):
-                for k, v in options.items():
-                    # HiGHS expects doubles for numeric options; coerce int → float.
-                    opt.options[k] = float(v) if isinstance(v, int) else v
-            if s in ("appsi_highs", "highs"):
-                if tee:
-                    _configure_highs_logging(opt)
-                if log_file is not None:
-                    # Explicit log_file wins over the generic tee-based one —
-                    # always overwritten so it reflects the most recent solve.
-                    _configure_highs_file_log(opt, log_file)
-            auto_load = True
-            if hasattr(opt, "config"):
-                try:
-                    opt.config.load_solutions = False
-                    auto_load = False
-                except AttributeError:
-                    pass
-            if tee:
-                logger.info("Starting solve with %s...", s)
-            try:
-                results = opt.solve(model, tee=tee, load_solutions=auto_load)
-            except TypeError:
-                results = opt.solve(model, tee=tee)
-            tc = getattr(results.solver, "termination_condition", None)
-            if tee:
-                logger.info("Solve finished (termination=%s)", tc)
-            _ACCEPTABLE = (pyo.TerminationCondition.optimal,
-                           pyo.TerminationCondition.feasible,
-                           pyo.TerminationCondition.maxTimeLimit)
-            if not auto_load and tc in _ACCEPTABLE:
-                try:
-                    model.solutions.load_from(results)
-                except Exception as load_err:
-                    logger.warning("Could not load solution (tc=%s): %s", tc, load_err)
-            return results, s
-        except Exception as e:  # noqa: BLE001
-            logger.debug("Solver %s failed: %s", s, e)
-            last_err = e
-    raise RuntimeError(f"Failed to solve model. Last error: {last_err}")
-
-def _top_k(items, k):
-    return sorted(items, key=lambda x: x.get("missing_kw", 0.0), reverse=True)[:max(1, k)]
-
-
-def _diagnose_multi_house_power(*, loads_by_house, pv_by_house, bat_params_by_house, max_rows):
-    houses = list(loads_by_house.keys())
-    T = len(next(iter(loads_by_house.values())))
-    sys_viol = []
-    house_viol = []
-    for t in range(T):
-        total_load = total_pv = total_cap = 0.0
-        for h in houses:
-            load = float(loads_by_house[h][t])
-            pv = float(pv_by_house[h][t])
-            bat = bat_params_by_house.get(h) or {}
-            # Aceita 'P_contracted' (novo) ou 'P_grid_max' (retrocompatibilidade)
-            P_grid = float(bat.get("P_contracted", bat.get("P_grid_max", 0.0)))
-            P_dis = float(bat.get("P_dis_max", 0.0))
-            max_supply_h = pv + P_grid + P_dis
-            missing_h = load - max_supply_h
-            if missing_h > 1e-6:
-                house_viol.append(dict(house=h, t=t, load_kw=load, pv_kw=pv,
-                    max_supply_kw=max_supply_h, missing_kw=missing_h,
-                    note="House Load > PV + P_grid_max + P_dis_max"))
-            total_load += load
-            total_pv += pv
-            total_cap += pv + P_grid + P_dis
-        missing_sys = total_load - total_cap
-        if missing_sys > 1e-6:
-            sys_viol.append(dict(house="__SYSTEM__", t=t, load_kw=total_load, pv_kw=total_pv,
-                max_supply_kw=total_cap, missing_kw=missing_sys,
-                note="System Load > sum(PV + P_grid_max + P_dis_max)."))
-    return _top_k(sys_viol, max_rows), _top_k(house_viol, max_rows)
-
-
-def _format_violations_section(title, viols):
-    lines = [title]
-    for v in viols:
-        lines.append(
-            f"- t={v['t']} | Load={v['load_kw']:.3f} | PV={v['pv_kw']:.3f} | "
-            f"MaxSupply~{v['max_supply_kw']:.3f} | Missing={v['missing_kw']:.3f}"
-        )
-    lines.append("")
-    lines.append("Restrições ativas: P_imp<=P_contracted, P_exp<=P_contracted, P_dis<=P_dis_max.")
-    return lines
-
-
-def _write_infeas_report(*, out_dir, case_name, solver_used, termination_condition,
-                          debug_cfg, lines, model=None, model_kind="unknown"):
-    out_dir.mkdir(parents=True, exist_ok=True)
-    report_path = out_dir / "debug_infeasibility.txt"
-    header = [
-        f"CASE: {case_name}", f"MODE: {model_kind}",
-        f"SOLVER_USED: {solver_used}", f"TERMINATION: {termination_condition}", "",
-        "This case is infeasible (or solver did not return a feasible solution).",
-        "Causas típicas: P_imp<=P_contracted, P_exp<=P_contracted, P_dis<=P_dis_max, limites SoC.", "",
-    ]
-    report_path.write_text("\n".join(header + lines), encoding="utf-8")
-    if bool(debug_cfg.get("write_lp", True)) and model is not None:
-        try:
-            lp_path = out_dir / "debug_model.lp"
-            model.write(str(lp_path), io_options={"symbolic_solver_labels": True})
-        except (OSError, RuntimeError, ValueError) as e:
-            logger.debug("Failed to write debug_model.lp: %s", e)
-    return report_path
-
-
-def _handle_infeasible(*, case_out_dir, case_name, debug_cfg, loads_by_house,
-                        pv_by_house, bat_params_by_house, solver_used, solver,
-                        termination, model, original_exc, model_kind="unknown"):
-    sys_viol, house_viol = _diagnose_multi_house_power(
-        loads_by_house=loads_by_house, pv_by_house=pv_by_house,
-        bat_params_by_house=bat_params_by_house, max_rows=int(debug_cfg["max_rows"]))
-    lines = []
-    if original_exc is not None:
-        lines.append(
-            f"ORIGINAL ERROR: {type(original_exc).__name__}: {original_exc}")
-        lines.append("")
-    if sys_viol:
-        lines.extend(_format_violations_section(
-            "== SYSTEM-LEVEL POWER VIOLATIONS ==", sys_viol))
-    if house_viol:
-        if lines:
-            lines.append("")
-        lines.extend(_format_violations_section("== PER-HOUSE VIOLATIONS ==", house_viol))
-    if not sys_viol and not house_viol:
-        lines.append("No instantaneous power-cap violation found.")
-        lines.append("Infeasibility may be due to inter-temporal SoC/energy constraints.")
-    report = _write_infeas_report(
-        out_dir=case_out_dir, case_name=case_name,
-        solver_used=str(solver_used or solver),
-        termination_condition=str(termination or ""),
-        debug_cfg=debug_cfg, lines=lines, model=model, model_kind=model_kind)
-    exc_hint = f" | {type(original_exc).__name__}: {original_exc}" if original_exc is not None else ""
-    err = RuntimeError(f"Infeasible/unsolved case '{case_name}'. See: {report}{exc_hint}")
-    err.__cause__ = original_exc
-    return err
-
-
 def _tariff_for_house(tariff, h):
     """Extract the tariff series for a single house (handles flat or per-house mapping)."""
     if isinstance(tariff, dict):
@@ -373,10 +126,13 @@ def _solve_pwl_per_house(
     constraints is much tighter than big-M (bounds are physical, not artificial),
     so B&B closes to optimality in a fraction of the time.
 
-    Each house sub-problem is fully independent (fixed-alpha PV allocation).
-    They are solved SEQUENTIALLY by default (see `allow_parallel` below) —
-    appsi_highs captures stdout/stderr globally, which is not thread-safe and
-    corrupts solves when run concurrently via ThreadPoolExecutor.
+    Each house sub-problem is fully independent (fixed-alpha PV allocation), so
+    they could in principle be solved in parallel. They are NOT: appsi_highs
+    captures stdout/stderr globally (Pyomo tee), which is not thread-safe and
+    corrupted solves — producing spurious "infeasibilities" and I/O deadlocks in
+    Spyder — when they were run concurrently via a ThreadPoolExecutor. Do not
+    reintroduce threading without first isolating the solver's stream handling
+    (separate processes would be the safe route).
 
     Returns
     -------
@@ -389,8 +145,6 @@ def _solve_pwl_per_house(
     from batEnv.models.multi_house_degradation_pwl import (
         _DEFAULT_LAMBDA_BY_BIN, _DEFAULT_SOC_BREAKPOINTS,
     )
-    import os
-    from concurrent.futures import ThreadPoolExecutor, as_completed
     import pandas as pd
 
     soc_bkpts = [float(v) for v in pwl_cfg_dict.get("soc_breakpoints", _DEFAULT_SOC_BREAKPOINTS)]
@@ -406,10 +160,6 @@ def _solve_pwl_per_house(
     if use_rolling:
         from batEnv.utils.rolling_horizon import (
             solve_rolling_horizon, resolve_window_step)
-
-    _ACCEPTABLE = (pyo.TerminationCondition.optimal,
-                   pyo.TerminationCondition.feasible,
-                   pyo.TerminationCondition.maxTimeLimit)
 
     def _solve_one(h):
         """Two-stage PWL solve for a single house. Thread-safe: builds its own
@@ -445,7 +195,7 @@ def _solve_pwl_per_house(
                 c_sell={h: _tariff_for_house(c_sell, h)},
                 dt_hours=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc,
                 window=win, step=stp,
-                solve_fn=_solve_model_safe, solver=solver,
+                solve_fn=solve_model_safe, solver=solver,
                 solver_options=solver_options, tee=tee,
                 case_name=f"{case_name}/{h}", debug_dir=case_out_dir,
             )
@@ -462,10 +212,10 @@ def _solve_pwl_per_house(
                 pv_by_house={h: pv_by_house[h]},
                 alpha_mode="fixed",
             )
-            results_1, solver_used_h = _solve_model_safe(
+            results_1, solver_used_h = solve_model_safe(
                 base_m, solver=solver, options=solver_options, tee=tee)
             tc_1 = getattr(results_1.solver, "termination_condition", None)
-            if tc_1 not in _ACCEPTABLE:
+            if tc_1 not in ACCEPTABLE_TERMINATIONS:
                 raise RuntimeError(f"Case '{case_name}', house '{h}': stage-1 returned {tc_1}")
             if tc_1 == pyo.TerminationCondition.maxTimeLimit:
                 _test = next(iter(base_m.P_imp.values()), None)
@@ -513,7 +263,7 @@ def _solve_pwl_per_house(
                 c_sell={h: _tariff_for_house(c_sell, h)},
                 dt_hours=dt_hours, allow_export=allow_export, cyclic_soc=cyclic_soc,
                 window=win, step=stp,
-                solve_fn=_solve_model_safe, solver=solver,
+                solve_fn=solve_model_safe, solver=solver,
                 solver_options=solver_options, tee=tee,
                 lambda_t_by_house={h: lambda_t}, case_name=f"{case_name}/{h}",
                 debug_dir=case_out_dir,
@@ -540,10 +290,10 @@ def _solve_pwl_per_house(
                 ),
                 sense=pyo.minimize,
             )
-            results_2, solver_used_h = _solve_model_safe(
+            results_2, solver_used_h = solve_model_safe(
                 deg_m, solver=solver, options=solver_options, tee=tee)
             tc_2 = getattr(results_2.solver, "termination_condition", None)
-            if tc_2 not in _ACCEPTABLE:
+            if tc_2 not in ACCEPTABLE_TERMINATIONS:
                 raise RuntimeError(f"Case '{case_name}', house '{h}': stage-2 returned {tc_2}")
             if tc_2 == pyo.TerminationCondition.maxTimeLimit:
                 _test = next(iter(deg_m.P_imp.values()), None)
@@ -577,42 +327,25 @@ def _solve_pwl_per_house(
 
         return h, df_h, row, f"s1:{tc_1},s2:{tc_2}", solver_used_h
 
-    # ── Execução por casa ──────────────────────────────────────────────────────
-    # As casas são independentes (fixed-alpha), mas a execução em THREADS NÃO é
-    # segura com o appsi_highs: a captura de stdout/stderr do Pyomo
+    # ── Execução por casa: SEQUENCIAL, por design ─────────────────────────────
+    # As casas são independentes (fixed-alpha) e poderiam correr em paralelo, mas
+    # com o appsi_highs isso NÃO é seguro: a captura de stdout/stderr do Pyomo
     # (capture_output / tee) é global e colide entre threads, provocando solves
     # corrompidos (falsas "infeasibilities") e deadlocks de I/O — observado em
-    # Spyder/ipykernel. Por isso o default é SEQUENCIAL. Com rolling horizon cada
-    # casa resolve depressa, pelo que o custo é aceitável. Só ativar allow_parallel
-    # num ambiente onde o solver não manipule os streams globais (e com cautela).
+    # Spyder/ipykernel. Com rolling horizon cada casa resolve depressa, pelo que
+    # o custo de ser sequencial é aceitável. Para paralelizar seria preciso
+    # isolar os streams do solver (processos separados, não threads).
     house_dfs: dict = {}
     pwl_rows_map: dict = {}
     terminations: dict = {}
     last_solver = solver
 
-    allow_parallel = False
-    n_workers = (min(len(houses), os.cpu_count() or 1)) if allow_parallel else 1
-
-    if n_workers > 1:
-        logger.info(
-            "  [PWL parallel] %d houses → %d parallel workers.",
-            len(houses), n_workers,
-        )
-        with ThreadPoolExecutor(max_workers=n_workers) as executor:
-            future_to_h = {executor.submit(_solve_one, h): h for h in houses}
-            for future in as_completed(future_to_h):
-                h_res, df, row, term, su = future.result()
-                house_dfs[h_res] = df
-                pwl_rows_map[h_res] = row
-                terminations[h_res] = term
-                last_solver = su
-    else:
-        for h in houses:
-            h_res, df, row, term, su = _solve_one(h)
-            house_dfs[h_res] = df
-            pwl_rows_map[h_res] = row
-            terminations[h_res] = term
-            last_solver = su
+    for h in houses:
+        h_res, df, row, term, su = _solve_one(h)
+        house_dfs[h_res] = df
+        pwl_rows_map[h_res] = row
+        terminations[h_res] = term
+        last_solver = su
 
     # Preserve original house order in metrics DataFrame
     pwl_rows = [pwl_rows_map[h] for h in houses]
@@ -648,7 +381,7 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
     # All CSV inputs are recorded at NATIVE_DT_HOURS (0.25 h = 15 min).
     # If dt_hours is coarser (e.g. 1.0 h for PWL runs), we must load enough native
     # rows to cover the desired model horizon and then average them down.
-    _resample_factor = max(1, round(dt_hours / NATIVE_DT_HOURS))
+    _resample_factor = resample_factor(dt_hours)
     T_native = T * _resample_factor   # rows to load from CSV at 15-min resolution
 
     loads_by_house = _load_loads(cfg, houses=houses, T=T_native)
@@ -664,27 +397,27 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
     if alpha_mode == "optimal":
         pv_total = load_pv_total(data_cfg, ROOT, T_native)
         if _resample_factor > 1:
-            pv_total = _resample_series(pv_total, _resample_factor)
+            pv_total = resample_series(pv_total, _resample_factor)
         pv_info = {"mode": "optimal_alpha", "pv_total_sum_kWh": float(sum(pv_total) * dt_hours)}
     else:
         pv_by_house, pv_info, _pv_debug = prepare_pv_by_house(
             cfg, houses=houses, T=T_native, root=ROOT, loads_by_house=loads_by_house)
         if _resample_factor > 1:
-            pv_by_house = {h: _resample_series(v, _resample_factor) for h, v in pv_by_house.items()}
+            pv_by_house = {h: resample_series(v, _resample_factor) for h, v in pv_by_house.items()}
 
     if _resample_factor > 1:
-        loads_by_house = {h: _resample_series(v, _resample_factor) for h, v in loads_by_house.items()}
+        loads_by_house = {h: resample_series(v, _resample_factor) for h, v in loads_by_house.items()}
         logger.info("Resampled input data from %.2fh to %.2fh (factor=%d, T=%d→%d).",
                     NATIVE_DT_HOURS, dt_hours, _resample_factor, T_native, T)
 
     c_grid, c_sell = build_tariffs(cfg, T_native, houses=houses, root=ROOT)
     if _resample_factor > 1:
         if isinstance(c_grid, dict):
-            c_grid = {h: _resample_series(v, _resample_factor) for h, v in c_grid.items()}
-            c_sell = {h: _resample_series(v, _resample_factor) for h, v in c_sell.items()}
+            c_grid = {h: resample_series(v, _resample_factor) for h, v in c_grid.items()}
+            c_sell = {h: resample_series(v, _resample_factor) for h, v in c_sell.items()}
         else:
-            c_grid = _resample_series(list(c_grid), _resample_factor)
-            c_sell = _resample_series(list(c_sell), _resample_factor)
+            c_grid = resample_series(list(c_grid), _resample_factor)
+            c_sell = resample_series(list(c_sell), _resample_factor)
     allow_export = bool((cfg.get("grid", {}) or {}).get("allow_export", True))
 
     bat_params_by_house = {
@@ -847,7 +580,7 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
                         c_grid=c_grid, c_sell=c_sell, pv_total=pv_total,
                         dt_hours=dt_hours, allow_export=allow_export,
                         cyclic_soc=cyclic_soc, window=win1, step=stp1,
-                        solve_fn=_solve_model_safe, solver=solver,
+                        solve_fn=solve_model_safe, solver=solver,
                         solver_options=solver_options, tee=tee,
                         case_name=case_name, debug_dir=case_out_dir,
                     )
@@ -860,13 +593,10 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
                         c_grid=c_grid, c_sell=c_sell,
                         pv_total=pv_total, alpha_mode="optimal",
                     )
-                    base_results, base_solver = _solve_model_safe(
+                    base_results, base_solver = solve_model_safe(
                         base_m, solver=solver, options=solver_options, tee=False)
                     base_tc = getattr(base_results.solver, "termination_condition", None)
-                    _ACCEPTABLE = (pyo.TerminationCondition.optimal,
-                                   pyo.TerminationCondition.feasible,
-                                   pyo.TerminationCondition.maxTimeLimit)
-                    if base_tc not in _ACCEPTABLE:
+                    if base_tc not in ACCEPTABLE_TERMINATIONS:
                         raise RuntimeError(f"Base model returned {base_tc}")
                     # Extract fixed PV allocation from optimal solution.
                     # max(0.0, ...) guards against tiny negative floats from solver precision.
@@ -911,7 +641,7 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
             )
         except Exception as e:  # noqa: BLE001
             diag_pv = _pwl_pv_by_house or {h: [0.0] * T for h in houses}
-            raise _handle_infeasible(
+            raise handle_infeasible(
                 case_out_dir=case_out_dir, case_name=case_name, debug_cfg=debug_cfg,
                 loads_by_house=loads_by_house, pv_by_house=diag_pv,
                 bat_params_by_house=bat_params_by_house, solver_used=solver_used,
@@ -931,14 +661,11 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
         solver_used = None
         termination = None
         try:
-            results, solver_used = _solve_model_safe(
+            results, solver_used = solve_model_safe(
                 m, solver=solver, options=solver_options, tee=tee)
             termination = str(getattr(results.solver, "termination_condition", ""))
             tc = getattr(results.solver, "termination_condition", None)
-            _ACCEPTABLE = (pyo.TerminationCondition.optimal,
-                           pyo.TerminationCondition.feasible,
-                           pyo.TerminationCondition.maxTimeLimit)
-            if tc not in _ACCEPTABLE:
+            if tc not in ACCEPTABLE_TERMINATIONS:
                 raise RuntimeError(f"Solver returned {termination}")
             if tc == pyo.TerminationCondition.maxTimeLimit:
                 _test_var = next(iter(m.P_imp.values()), None)
@@ -952,7 +679,7 @@ def run_case(case_yaml_path, *, outputs_dir="results", tee=False,
             if diag_pv_by_house is None and pv_total is not None:
                 n_h = max(1, len(houses))
                 diag_pv_by_house = {h: [v / n_h for v in pv_total] for h in houses}
-            raise _handle_infeasible(
+            raise handle_infeasible(
                 case_out_dir=case_out_dir, case_name=case_name, debug_cfg=debug_cfg,
                 loads_by_house=loads_by_house, pv_by_house=diag_pv_by_house,
                 bat_params_by_house=bat_params_by_house, solver_used=solver_used,

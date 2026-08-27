@@ -1,7 +1,7 @@
 case: b8_pv20_optimal_no_export__1month
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
-  Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv20_optimal_no_export__1month.yaml
-created_at: '2026-07-30T12:51:54.101274'
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\full_horizon_sweep\_sweep_tmp\b8_pv20_optimal_no_export__1month.yaml
+created_at: '2026-08-25T12:05:01.937848'
 dt_hours: 0.25
 horizon: 2880
 start: 2025-01-01 00:00

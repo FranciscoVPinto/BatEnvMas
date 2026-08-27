@@ -44,7 +44,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 2308
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5
@@ -58,7 +58,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 2308
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5
@@ -72,7 +72,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 1560
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5
@@ -86,7 +86,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 2308
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5
@@ -100,7 +100,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 3120
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5
@@ -114,7 +114,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 1560
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5
@@ -128,7 +128,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 3120
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5
@@ -142,7 +142,7 @@ houses:
       eta_ch: 0.95
       eta_dis: 0.95
       P_contracted: 3.45
-      battery_cost_eur: 1560
+      battery_cost_eur: 6500
       N_rated_cycles: 6000
       DoD_rated: 0.95
       aging_exponent: 1.5

@@ -21,10 +21,11 @@ import pyomo.environ as pyo
 
 
 # Escalaes oficiais de Potencia Contratada em Portugal (ERSE), em kVA.
-PORTUGUESE_CONTRACTED_POWER_KVA = [
-    1.15, 2.30, 3.45, 4.60, 5.75, 6.90,
-    10.35, 13.80, 17.25, 20.70, 27.60, 34.50, 41.40,
-]
+# Definidos UMA UNICA VEZ em battery_economics (onde vive `nearest_contracted_power`);
+# re-exportados aqui por retrocompatibilidade de importacoes.
+from batEnv.utils.battery_economics import (  # noqa: E402
+    PORTUGUESE_CONTRACTED_POWER_KVA,
+)
 
 
 def _load_dict(by_house, houses, T):
@@ -272,7 +273,3 @@ class MultiHouseModel:
             sense=pyo.minimize,
         )
         return m
-
-
-# Alias de retrocompatibilidade
-MultiHouseEnergySharingModel = MultiHouseModel

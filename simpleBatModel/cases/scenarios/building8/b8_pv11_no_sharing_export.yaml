@@ -19,12 +19,21 @@ grid:
   allow_export: true
 
 # Bateria genérica igual para todos — isola o efeito da partilha, não do dimensionamento.
+#
+# `battery_cost_eur` TEM de ser redefinido aqui. O bloco `battery` é fundido
+# chave-a-chave com o do `_b8_base.yaml` (deep_merge do `extends:`), por isso
+# qualquer chave omitida é HERDADA. Sem esta linha, cada apartamento herdava o
+# custo do seu módulo real (2308 / 1560 / 3120 €) e aplicava-o a uma bateria de
+# 10 kWh, ficando com armazenamento a 156–312 €/kWh em vez de 650 €/kWh — e com
+# um λ de degradação diferente entre apartamentos sem qualquer razão física.
+# 6500 € = 650 €/kWh × 10 kWh, o mesmo preço unitário dos módulos Pylontech reais.
 houses:
   Apt1: { battery: &bat
     { E_init: 5.0, E_min: 1.0, E_max: 10.0,
       P_ch_max: 3.3, P_dis_max: 3.3,
       eta_ch: 0.95, eta_dis: 0.95,
-      P_contracted: 3.45 } }
+      P_contracted: 3.45,
+      battery_cost_eur: 6500 } }
   Apt2: { battery: *bat }
   Apt3: { battery: *bat }
   Apt4: { battery: *bat }

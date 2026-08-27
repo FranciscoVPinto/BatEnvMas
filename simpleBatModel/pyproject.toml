@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "batenv"
+version = "1.0.0"
+description = "MILP para despacho de baterias domesticas com PV partilhado numa comunidade de energia"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [{ name = "Francisco Pinto" }]
+
+# As versoes exactas do ambiente usado nas corridas da dissertacao estao em
+# environment.yml (conda). Estes limites servem para uma instalacao via pip.
+dependencies = [
+    "pyomo>=6.7",
+    "highspy>=1.7",
+    "pandas>=2.0",
+    "numpy>=1.24",
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+    "matplotlib>=3.7",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+# Instalacao em modo editavel:
+#     pip install -e .
+# Depois disto, `import batEnv` funciona em qualquer directorio e os
+# `sys.path.insert` em scripts/_common.py e tests/conftest.py deixam de ser
+# necessarios (PLANO_LIMPEZA.md §5.4).
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v --no-header"

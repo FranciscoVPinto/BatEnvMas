@@ -1,17 +1,27 @@
 case: b8_pv11_no_sharing_export__6months
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
   Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv11_no_sharing_export__6months.yaml
-created_at: '2026-05-10T00:39:44.515715'
+created_at: '2026-08-25T22:45:55.703743'
 dt_hours: 0.25
 horizon: 17280
 start: 2025-01-01 00:00
 allow_export: true
 cyclic_soc: true
 alpha_mode: fixed
-battery_degradation_eur_per_kwh: 0.0
+battery_degradation_eur_per_kwh: 0.05542387581340113
+battery_degradation_eur_per_kwh_by_house:
+  Apt1: 0.05542387581340113
+  Apt2: 0.05542387581340113
+  Apt3: 0.05542387581340113
+  Apt4: 0.05542387581340113
+  Apt5: 0.05542387581340113
+  Apt6: 0.05542387581340113
+  Apt7: 0.05542387581340113
+  Apt8: 0.05542387581340113
 battery_degradation_pwl: null
+rolling_horizon: null
 sharing_enabled: false
-model_kind: house_indexed_unified
+model_kind: house_indexed_degradation
 warnings: []
 pv_info:
   warnings: []

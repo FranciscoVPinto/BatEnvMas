@@ -52,6 +52,16 @@ def compute_summary_metrics(df: pd.DataFrame, dt_hours: float) -> Dict[str, Any]
         sc = (out["E_pv_kWh"] - out["E_curt_kWh"] - out["E_exp_kWh"]) / out["E_pv_kWh"]
         out["Self_Consumption"] = float(max(0.0, min(1.0, sc)))
 
+    # Aproveitamento do excedente PV pela bateria:
+    # excedente = energia PV que nao foi consumida directamente (E_ch + E_exp + E_curt)
+    # fracao_aproveitada = E_ch / excedente  (sem grid charging, E_ch = P_pv_to_bat)
+    e_surplus = out["E_ch_kWh"] + out["E_exp_kWh"] + out["E_curt_kWh"]
+    if e_surplus > 0:
+        out["PV_surplus_kWh"] = float(e_surplus)
+        out["Surplus_captured_frac"] = float(
+            max(0.0, min(1.0, out["E_ch_kWh"] / e_surplus))
+        )
+
     if out["E_load_kWh"] > 0:
         ss = (out["E_load_kWh"] - out["E_imp_kWh"]) / out["E_load_kWh"]
         out["Self_Sufficiency"] = float(max(0.0, min(1.0, ss)))
@@ -125,13 +135,9 @@ def plot_house_per_case(
     pwl_soc_breakpoints: Optional[List[float]] = None,
 ) -> None:
     """
-    Four-panel per-house timeseries plot.
-
-    Parameters
-    ----------
-    pwl_soc_breakpoints :
-        When provided, draws shaded SoC bin zones on the battery panel
-        (fractions in [0, 1], e.g. [0.0, 0.2, 0.8, 1.0]).
+    2-panel per-house timeseries:
+      Painel 1 — Potências: Load, PV, importação/exportação rede, carga/descarga bateria
+      Painel 2 — Estado de carga (SoC %) + custo acumulado (€)
     """
     outpath = Path(outpath)
     outpath.parent.mkdir(parents=True, exist_ok=True)
@@ -139,94 +145,51 @@ def plot_house_per_case(
 
     if "t" in d.columns:
         t = pd.to_numeric(d["t"], errors="coerce").fillna(0).to_numpy()
-        x_hours = (t - t.min()) * float(dt_hours)
+        x = (t - t.min()) * float(dt_hours) / 24.0   # dias
     else:
-        x_hours = np.arange(len(d)) * float(dt_hours)
-    x = x_hours / 24.0  # days
+        x = np.arange(len(d)) * float(dt_hours) / 24.0
 
-    Load   = d["Load"].to_numpy()   if "Load"   in d.columns else None
-    PV     = d["PV"].to_numpy()     if "PV"     in d.columns else None
-    P_curt = d["P_curt"].to_numpy() if "P_curt" in d.columns else None
-    P_imp  = d["P_imp"].to_numpy()  if "P_imp"  in d.columns else None
-    P_exp  = d["P_exp"].to_numpy()  if "P_exp"  in d.columns else None
-    P_ch   = d["P_ch"].to_numpy()   if "P_ch"   in d.columns else None
-    P_dis  = d["P_dis"].to_numpy()  if "P_dis"  in d.columns else None
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(13, 7), sharex=True)
 
-    fig = plt.figure(figsize=(13, 10))
-
-    # ── Panel 1: Load / PV / Curtailment ──────────────────────────────────
-    ax1 = fig.add_subplot(4, 1, 1)
-    if Load is not None:
-        ax1.plot(x, Load, label="Load (kW)")
-    if PV is not None:
-        ax1.plot(x, PV, label="PV allocated (kW)")
-    if P_curt is not None:
-        ax1.plot(x, P_curt, label="PV curtailed (kW)", linestyle="--")
+    # --- Painel 1: Potências ---
+    if "Load" in d.columns:
+        ax1.plot(x, d["Load"].to_numpy(), label="Carga (kW)", color="#333333")
+    if "PV" in d.columns:
+        ax1.plot(x, d["PV"].to_numpy(), label="PV (kW)", color="#f4a11d", linewidth=1.2)
+    if "P_imp" in d.columns:
+        ax1.plot(x, d["P_imp"].to_numpy(), label="Importação (kW)", color="#1f77b4", alpha=0.8)
+    if "P_exp" in d.columns:
+        ax1.plot(x, -d["P_exp"].to_numpy(), label="−Exportação (kW)", color="#17becf", alpha=0.8)
+    if "P_ch" in d.columns and "P_dis" in d.columns:
+        net_bat = d["P_dis"].to_numpy() - d["P_ch"].to_numpy()
+        ax1.plot(x, net_bat, label="Bateria (+dis/−ch) (kW)", color="#9467bd", linewidth=1.0, alpha=0.8)
+    ax1.axhline(0, linewidth=0.8, color="#aaaaaa")
     ax1.set_ylabel("kW")
-    ax1.set_title(title or "House")
-    ax1.grid(True, alpha=0.3)
-    ax1.legend()
+    ax1.set_title(title or "Fração")
+    ax1.grid(True, alpha=0.25)
+    ax1.legend(ncol=3, fontsize=8, loc="upper right")
 
-    # ── Panel 2: Grid net ──────────────────────────────────────────────────
-    ax2 = fig.add_subplot(4, 1, 2, sharex=ax1)
-    if P_imp is not None and P_exp is not None:
-        ax2.plot(x, P_imp - P_exp, label="Grid net (+import / −export) (kW)")
-        ax2.axhline(0, linewidth=1)
-    else:
-        if P_imp is not None:
-            ax2.plot(x, P_imp, label="Import (kW)")
-        if P_exp is not None:
-            ax2.plot(x, -P_exp, label="−Export (kW)")
-            ax2.axhline(0, linewidth=1)
-    ax2.set_ylabel("kW")
-    ax2.grid(True, alpha=0.3)
-    ax2.legend()
-
-    # ── Panel 3: Battery power + SoC ──────────────────────────────────────
-    ax3 = fig.add_subplot(4, 1, 3, sharex=ax1)
-    if P_ch is not None or P_dis is not None:
-        net_bat = (P_dis if P_dis is not None else 0.0) - (P_ch if P_ch is not None else 0.0)
-        ax3.plot(x, net_bat, label="Battery net (+dis / −ch) (kW)", color="#1f77b4")
-        ax3.axhline(0, linewidth=1, color="#aaaaaa")
-    ax3.set_ylabel("kW")
-    ax3.grid(True, alpha=0.3)
-
-    ax3b = ax3.twinx()
+    # --- Painel 2: SoC + custo acumulado ---
+    ax2b = ax2.twinx()
     if "E" in d.columns:
         E = pd.to_numeric(d["E"], errors="coerce").fillna(0.0).to_numpy()
-        in_soc_mode = (E_min is not None) and (E_max is not None) and (E_max > E_min)
-
-        if in_soc_mode:
-            soc_pct = 100.0 * (E - float(E_min)) / (float(E_max) - float(E_min))
-            # Draw PWL bin zones BEFORE the SoC line so they sit in the background
+        if E_min is not None and E_max is not None and E_max > E_min:
+            soc = 100.0 * (E - float(E_min)) / (float(E_max) - float(E_min))
             if pwl_soc_breakpoints and len(pwl_soc_breakpoints) >= 2:
-                _draw_soc_bin_zones(ax3b, pwl_soc_breakpoints)
-            ax3b.plot(x, soc_pct, label="SoC (%)", color="#ff7f0e", linewidth=1.5, zorder=3)
-            ax3b.set_ylabel("%")
-            ax3b.set_ylim(-5, 105)
+                _draw_soc_bin_zones(ax2, pwl_soc_breakpoints)
+            ax2.plot(x, soc, label="SoC (%)", color="#ff7f0e", linewidth=1.5, zorder=3)
+            ax2.set_ylabel("SoC (%)")
+            ax2.set_ylim(-5, 105)
         else:
-            ax3b.plot(x, E, label="Energy E (kWh)", color="#ff7f0e", linewidth=1.5)
-            ax3b.set_ylabel("kWh")
-
-    _legend_both(ax3, ax3b, loc="upper left")
-
-    # ── Panel 4: Tariffs + cumulative cost ────────────────────────────────
-    ax4 = fig.add_subplot(4, 1, 4, sharex=ax1)
-    if "c_grid" in d.columns:
-        ax4.plot(x, d["c_grid"].to_numpy(), label="c_grid (€/kWh)")
-    if "c_sell" in d.columns:
-        ax4.plot(x, d["c_sell"].to_numpy(), label="c_sell (€/kWh)")
-    ax4.set_ylabel("€/kWh")
-    ax4.grid(True, alpha=0.3)
-
-    ax4b = ax4.twinx()
+            ax2.plot(x, E, label="E (kWh)", color="#ff7f0e", linewidth=1.5)
+            ax2.set_ylabel("kWh")
     if "cost_cum" in d.columns:
-        ax4b.plot(x, d["cost_cum"].to_numpy(), label="Cost cumulative (€)", color="#2ca02c")
-    ax4b.set_ylabel("€")
-
-    _legend_both(ax4, ax4b, loc="upper left")
-    ax4.set_xlabel("time (days)")
+        ax2b.plot(x, d["cost_cum"].to_numpy(), label="Custo acum. (€)", color="#2ca02c", linestyle="--")
+        ax2b.set_ylabel("€")
+    _legend_both(ax2, ax2b, loc="upper left")
+    ax2.grid(True, alpha=0.25)
+    ax2.set_xlabel("tempo (dias)")
 
     fig.tight_layout()
-    fig.savefig(outpath, dpi=160)
+    fig.savefig(outpath, dpi=150)
     plt.close(fig)

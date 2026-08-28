@@ -4,6 +4,9 @@ case: b8_pv02_weighted_export
 grid:
   allow_export: true
 
+# Distribuição fixa com pesos arbitrários (ex: acordada em assembleia de condóminos).
+# Apt1 e Apt2 recebem quota maior por terem maior área/consumo contratado.
+# Para pesos proporcionais ao consumo médio real, ver pv04 (consumption_mean).
 sharing:
   mode: fixed_alpha
   normalize: false

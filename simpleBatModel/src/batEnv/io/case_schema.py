@@ -25,7 +25,16 @@ _BATTERY_SCHEMA = {
         "P_dis_max": {"type": "number"},
         "eta_ch": {"type": "number", "minimum": 0, "maximum": 1},
         "eta_dis": {"type": "number", "minimum": 0, "maximum": 1},
+        # P_grid_max is the legacy field; P_contracted is the canonical name
+        # (Potência Contratada, DL 15/2022). run_case.py accepts both.
         "P_grid_max": {"type": "number"},
+        "P_contracted": {"type": "number"},
+        # Optional physical parameters for automatic degradation cost (lambda) calculation
+        # via compute_degradation_cost_per_kwh() in battery_economics.py (Wohler model).
+        "battery_cost_eur": {"type": "number", "minimum": 0},
+        "N_rated_cycles": {"type": "number", "minimum": 1},
+        "DoD_rated": {"type": "number", "minimum": 0, "maximum": 1},
+        "aging_exponent": {"type": "number", "minimum": 0},
     },
     "additionalProperties": False,
 }
@@ -57,10 +66,6 @@ _FALLBACK_SCHEMA = {
     "additionalProperties": False,
 }
 
-# Schema for battery_degradation_pwl (MultiHouseModelDegradationPWL).
-# soc_breakpoints: K+1 fractions in [0,1], strictly increasing (0.0 to 1.0).
-# lambda_by_bin:   K degradation costs in EUR/kWh, one per SoC bin.
-# lambda_by_bin_per_house: optional per-house override.
 _BATTERY_DEGRADATION_PWL_SCHEMA = {
     "type": "object",
     "properties": {
@@ -84,6 +89,19 @@ _BATTERY_DEGRADATION_PWL_SCHEMA = {
         },
     },
     "required": ["soc_breakpoints", "lambda_by_bin"],
+    "additionalProperties": False,
+}
+
+_ROLLING_HORIZON_SCHEMA = {
+    "type": "object",
+    "properties": {
+        # Opt-in receding-horizon solve (approximate) for long horizons.
+        "enabled": {"type": "boolean"},
+        # window = total timesteps per window (commit + look-ahead).
+        "window": {"type": "integer", "minimum": 2},
+        # step = committed timesteps per window (1 <= step <= window).
+        "step": {"type": "integer", "minimum": 1},
+    },
     "additionalProperties": False,
 }
 
@@ -169,13 +187,13 @@ CASE_SCHEMA = {
             },
             "additionalProperties": True,
         },
-        # battery_degradation_pwl takes precedence over battery_degradation_eur_per_kwh.
         "model": {
             "type": "object",
             "properties": {
                 "cyclic_soc": {"type": "boolean"},
                 "battery_degradation_eur_per_kwh": {"type": "number", "minimum": 0},
                 "battery_degradation_pwl": _BATTERY_DEGRADATION_PWL_SCHEMA,
+                "rolling_horizon": _ROLLING_HORIZON_SCHEMA,
             },
             "additionalProperties": False,
         },

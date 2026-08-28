@@ -7,6 +7,15 @@ cases_glob:
   - "b8_pv12*.yaml"
   - "b8_pv13*.yaml"
   - "b8_pv14*.yaml"
+  - "b8_pv20*.yaml"
+  - "b8_pv21*.yaml"
+# Nota: pv15–pv19 (PWL) correm via runset_pwl_sweep.yaml (requerem dt_hours: 0.25)
+# e escrevem igualmente em results/full_horizon_sweep/
+#
+# pv21 = baseline CONTROLADO sem partilha (PV proprio + baterias REAIS por
+# apartamento). Comparar com pv09 isola o efeito da partilha mantendo o parque
+# de baterias constante (27.45 kWh), ao contrario do pv11 (bateria generica de
+# 10 kWh/casa, ~80 kWh no edificio).
 
 sweep:
   - suffix: 1month

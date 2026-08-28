@@ -13,7 +13,10 @@ sharing:
     apply_when: always
 
 model:
-  cyclic_soc: true
+  # cyclic_soc: true herdado de _b8_base.yaml
   battery_degradation_pwl:
     soc_breakpoints: [0.0, 0.2, 0.8, 1.0]
-    lambda_by_bin: [0.08, 0.03, 0.06]
+    # lambda derivado da curva de Wohler (ver battery_economics.compute_pwl_lambda_by_bin).
+    # DoD representativo por bin = 1 - midpoint(SoC) = [0.9, 0.5, 0.1]; lambda = C*DoD^(gamma-1).
+    # Perfil monotono (descarga profunda = mais cara); recupera o lambda global ~0.0569 em DoD_actual.
+    lambda_by_bin: [0.0554, 0.0413, 0.0185]

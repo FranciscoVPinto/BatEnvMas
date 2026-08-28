@@ -8,6 +8,7 @@ cases:
   - b8_pv03_consumption_instant_export.yaml
   - b8_pv04_consumption_mean_export.yaml
   - b8_pv09_optimal_export.yaml
+  - b8_pv20_optimal_no_export.yaml
 
 sweep:
   - suffix: no_deg

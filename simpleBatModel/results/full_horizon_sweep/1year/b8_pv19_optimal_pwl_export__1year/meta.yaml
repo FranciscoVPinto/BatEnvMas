@@ -1,0 +1,39 @@
+case: b8_pv19_optimal_pwl_export__1year
+case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\full_horizon_sweep\_sweep_tmp\b8_pv19_optimal_pwl_export__1year.yaml
+created_at: '2026-08-25T20:27:35.551448'
+dt_hours: 0.25
+horizon: 35040
+start: 2025-01-01 00:00
+allow_export: true
+cyclic_soc: true
+alpha_mode: optimal
+battery_degradation_eur_per_kwh: 0.0
+battery_degradation_eur_per_kwh_by_house: null
+battery_degradation_pwl:
+  soc_breakpoints:
+  - 0.0
+  - 0.2
+  - 0.8
+  - 1.0
+  lambda_by_bin:
+  - 0.0554
+  - 0.0413
+  - 0.0185
+rolling_horizon:
+  enabled: true
+  window: 1344
+  step: 672
+sharing_enabled: false
+model_kind: house_indexed_degradation_pwl
+warnings: []
+pv_info:
+  mode: optimal_alpha
+  pv_total_sum_kWh: 12572.966734505648
+solver_used: highs
+termination_condition: Apt1:s1:rolling,s2:rolling; Apt2:s1:rolling,s2:rolling; Apt3:s1:rolling,s2:rolling;
+  Apt4:s1:rolling,s2:rolling; Apt5:s1:rolling,s2:rolling; Apt6:s1:rolling,s2:rolling;
+  Apt7:s1:rolling,s2:rolling; Apt8:s1:rolling,s2:rolling
+debug:
+  write_lp: true
+  max_rows: 30

@@ -1,21 +1,40 @@
+"""
+MILP com uma bateria independente por fracao (house-indexed).
+
+Um unico binario y define o modo operacional de cada fracao:
+
+  y = 0  ->  modo geracao   : PV >= carga, bateria pode CARREGAR (de PV), pode EXPORTAR
+             P_imp = 0,  P_dis = 0
+  y = 1  ->  modo consumo   : PV < carga, bateria pode DESCARREGAR, pode IMPORTAR
+             P_exp = 0,  P_ch  = 0
+
+A bateria NUNCA carrega da rede. O carregamento e sempre de excedente PV (y=0).
+Consequencia: o fluxo PV e exacto e sem ambiguidade.
+"""
+
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Tuple
 
 import pyomo.environ as pyo
 
 
-def _to_2d_1_indexed_dict(
-    by_house: Mapping[str, Sequence[float]],
-    houses: Sequence[str],
-    T: int,
-) -> Dict[Tuple[str, int], float]:
-    out: Dict[Tuple[str, int], float] = {}
+# Escalaes oficiais de Potencia Contratada em Portugal (ERSE), em kVA.
+# Definidos UMA UNICA VEZ em battery_economics (onde vive `nearest_contracted_power`);
+# re-exportados aqui por retrocompatibilidade de importacoes.
+from batEnv.utils.battery_economics import (  # noqa: E402
+    PORTUGUESE_CONTRACTED_POWER_KVA,
+)
+
+
+def _load_dict(by_house, houses, T):
+    """Converte {house: [v1...vT]} para {(house, t): vt} com t em [1, T]."""
+    out = {}
     for h in houses:
         series = list(by_house[h])
         if len(series) != T:
-            raise ValueError(f"Series for house '{h}' must have length T={T}")
+            raise ValueError(f"Serie da casa '{h}' tem comprimento {len(series)}, esperado T={T}")
         for t in range(1, T + 1):
             out[(h, t)] = float(series[t - 1])
     return out
@@ -24,26 +43,14 @@ def _to_2d_1_indexed_dict(
 @dataclass
 class MultiHouseModel:
     """
-    Unified house-indexed MILP with one independent battery per house.
+    MILP base: minimiza custo liquido de energia para uma comunidade de fracoes
+    com baterias domesticas e PV partilhado.
 
-    Two PV-allocation modes:
-      alpha_mode="fixed"   — PV[h,t] is an exogenous Param (provided in
-                              `pv_by_house`). This matches the legacy behaviour
-                              and the four heuristic sharing strategies
-                              (equal / weighted / consumption_instant / mean).
-      alpha_mode="optimal" — PV[h,t] becomes a Var with the constraint
-                              sum_h PV[h,t] == pv_total[t]. The MILP then
-                              chooses the allocation that minimises cost. This
-                              is the upper bound against which the heuristics
-                              should be benchmarked.
-
-    `cyclic_soc=True` (default) forces E[h, T] >= E_init[h] so the optimiser
-    cannot 'cheat' by emptying the batteries on the last timestep — important
-    for fair comparison across scenarios with finite horizons.
-
-    Conventions:
-      m.T  = RangeSet(1, T)         # decision timesteps
-      m.TE = RangeSet(0, T)         # energy index (E[h,0] = E_init[h])
+    Parametros
+    ----------
+    dt : float           Duracao de cada intervalo (horas).
+    allow_export : bool  Permite exportacao de excedente para a rede.
+    cyclic_soc : bool    Impoe E[h,T] >= E_init[h] para horizonte finito.
     """
 
     dt: float
@@ -53,162 +60,211 @@ class MultiHouseModel:
     def make_instance(
         self,
         *,
-        houses: List[str],
-        loads_by_house: Mapping[str, Sequence[float]],
-        bat_params_by_house: Mapping[str, Mapping[str, Any]],
-        c_grid: Sequence[float] | Mapping[str, Sequence[float]],
-        c_sell: Sequence[float] | Mapping[str, Sequence[float]],
-        pv_by_house: Optional[Mapping[str, Sequence[float]]] = None,
-        pv_total: Optional[Sequence[float]] = None,
-        alpha_mode: str = "fixed",
-    ) -> pyo.ConcreteModel:
+        houses,
+        loads_by_house,
+        bat_params_by_house,
+        c_grid,
+        c_sell,
+        pv_by_house=None,
+        pv_total=None,
+        alpha_mode="fixed",
+    ):
+        """
+        Constroi o modelo Pyomo concreto.
+
+        bat_params_by_house aceita as chaves:
+          E_init, E_min, E_max, P_ch_max, P_dis_max, eta_ch, eta_dis
+          P_contracted  -- Potencia Contratada (kW); aceita tambem P_grid_max.
+        """
         if not houses:
-            raise ValueError("houses must be a non-empty list")
+            raise ValueError("houses nao pode ser vazio")
         if alpha_mode not in ("fixed", "optimal"):
-            raise ValueError(f"alpha_mode must be 'fixed' or 'optimal', got '{alpha_mode}'")
+            raise ValueError(f"alpha_mode deve ser 'fixed' ou 'optimal', obtido '{alpha_mode}'")
 
         houses = [str(h) for h in houses]
         T = len(next(iter(loads_by_house.values())))
 
-        # input validation
         if alpha_mode == "fixed":
             if pv_by_house is None:
-                raise ValueError("alpha_mode='fixed' requires pv_by_house")
+                raise ValueError("alpha_mode='fixed' requer pv_by_house")
             for h in houses:
-                if h not in loads_by_house or h not in pv_by_house:
-                    raise KeyError(f"Missing series for house '{h}'")
                 if len(loads_by_house[h]) != T or len(pv_by_house[h]) != T:
-                    raise ValueError(f"House '{h}' series must have length T={T}")
-        else:  # alpha_mode == "optimal"
+                    raise ValueError(f"Serie da casa '{h}' tem comprimento errado (esperado T={T})")
+        else:
             if pv_total is None:
-                raise ValueError("alpha_mode='optimal' requires pv_total")
+                raise ValueError("alpha_mode='optimal' requer pv_total")
             if len(pv_total) != T:
-                raise ValueError(f"pv_total must have length T={T}")
-            for h in houses:
-                if h not in loads_by_house:
-                    raise KeyError(f"Missing load series for house '{h}'")
-                if len(loads_by_house[h]) != T:
-                    raise ValueError(f"House '{h}' load series must have length T={T}")
+                raise ValueError(f"pv_total tem comprimento {len(pv_total)}, esperado T={T}")
 
-        if isinstance(c_grid, Mapping):
-            c_grid_by_house = {h: list(c_grid[h]) for h in houses}
-        else:
-            c_grid_by_house = {h: list(c_grid) for h in houses}
+        def expand_tariff(tariff):
+            if isinstance(tariff, Mapping):
+                return {h: list(tariff[h]) for h in houses}
+            return {h: list(tariff) for h in houses}
 
-        if isinstance(c_sell, Mapping):
-            c_sell_by_house = {h: list(c_sell[h]) for h in houses}
-        else:
-            c_sell_by_house = {h: list(c_sell) for h in houses}
+        c_grid_h = expand_tariff(c_grid)
+        c_sell_h = expand_tariff(c_sell)
 
-        for h in houses:
-            if len(c_grid_by_house[h]) != T or len(c_sell_by_house[h]) != T:
-                raise ValueError(f"Tariff series for house '{h}' must have length T={T}")
+        def bat(h, key, default):
+            return float((bat_params_by_house.get(h) or {}).get(key, default))
 
+        def contracted_power(h):
+            bp = bat_params_by_house.get(h) or {}
+            return float(bp.get("P_contracted", bp.get("P_grid_max", 1e9)))
+
+        # --- Conjuntos ---
         m = pyo.ConcreteModel()
-        m.H = pyo.Set(initialize=houses, ordered=True)
-        m.T = pyo.RangeSet(1, T)
+        m.H  = pyo.Set(initialize=houses, ordered=True)
+        m.T  = pyo.RangeSet(1, T)
         m.TE = pyo.RangeSet(0, T)
 
-        m.dt = pyo.Param(initialize=float(self.dt))
-        m.kappa_exp = pyo.Param(initialize=1 if bool(self.allow_export) else 0, within=pyo.Binary)
+        # --- Parametros ---
+        m.dt        = pyo.Param(initialize=float(self.dt))
+        m.kappa_exp = pyo.Param(initialize=int(self.allow_export), within=pyo.Binary)
 
-        def _p(h: str, k: str, default: float) -> float:
-            return float((bat_params_by_house.get(h) or {}).get(k, default))
+        m.E_init       = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "E_init",    0.0))
+        m.E_min        = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "E_min",     0.0))
+        m.E_max        = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "E_max",     0.0))
+        m.P_ch_max     = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "P_ch_max",  0.0))
+        m.P_dis_max    = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "P_dis_max", 0.0))
+        m.eta_ch       = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "eta_ch",    1.0))
+        m.eta_dis      = pyo.Param(m.H, initialize=lambda mm, h: bat(h, "eta_dis",   1.0))
+        m.P_contracted = pyo.Param(
+            m.H, initialize=lambda mm, h: contracted_power(h), within=pyo.NonNegativeReals)
 
-        m.E_init = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "E_init", 0.0))
-        m.E_min = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "E_min", 0.0))
-        m.E_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "E_max", 0.0))
-        m.P_ch_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "P_ch_max", 0.0))
-        m.P_dis_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "P_dis_max", 0.0))
-        m.eta_ch = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "eta_ch", 1.0))
-        m.eta_dis = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "eta_dis", 1.0))
-        m.P_grid_max = pyo.Param(m.H, initialize=lambda mm, h: _p(h, "P_grid_max", 1e9))
-
-        m.Load = pyo.Param(m.H, m.T,
-                           initialize=_to_2d_1_indexed_dict(loads_by_house, houses, T),
-                           within=pyo.NonNegativeReals)
-        m.c_grid = pyo.Param(m.H, m.T,
-                             initialize=_to_2d_1_indexed_dict(c_grid_by_house, houses, T),
+        m.Load   = pyo.Param(m.H, m.T, initialize=_load_dict(loads_by_house, houses, T),
                              within=pyo.NonNegativeReals)
-        m.c_sell = pyo.Param(m.H, m.T,
-                             initialize=_to_2d_1_indexed_dict(c_sell_by_house, houses, T),
+        m.c_grid = pyo.Param(m.H, m.T, initialize=_load_dict(c_grid_h, houses, T),
+                             within=pyo.NonNegativeReals)
+        m.c_sell = pyo.Param(m.H, m.T, initialize=_load_dict(c_sell_h, houses, T),
                              within=pyo.NonNegativeReals)
 
+        # --- PV: parametro (fixed) ou variavel de decisao (optimal) ---
         m.alpha_mode = pyo.Param(initialize=alpha_mode, within=pyo.Any)
+
         if alpha_mode == "fixed":
             m.PV = pyo.Param(m.H, m.T,
-                             initialize=_to_2d_1_indexed_dict(pv_by_house, houses, T),
+                             initialize=_load_dict(pv_by_house, houses, T),
                              within=pyo.NonNegativeReals)
         else:
-            # PV becomes a decision variable bounded by the per-timestep total.
             pv_total_dict = {t + 1: float(pv_total[t]) for t in range(T)}
             m.PV_total = pyo.Param(m.T, initialize=pv_total_dict, within=pyo.NonNegativeReals)
             m.PV = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
-            m.alpha_total = pyo.Constraint(
+            # Garante sum(alpha) = 1: todo o PV disponivel e alocado as fracoes
+            m.pv_allocation = pyo.Constraint(
                 m.T,
                 rule=lambda mm, t: sum(mm.PV[h, t] for h in mm.H) == mm.PV_total[t],
             )
-            m.alpha_bound = pyo.Constraint(
+            m.pv_allocation_bound = pyo.Constraint(
                 m.H, m.T,
                 rule=lambda mm, h, t: mm.PV[h, t] <= mm.PV_total[t],
             )
 
-        m.P_ch = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
-        m.P_dis = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
-        m.P_imp = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
-        m.P_exp = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
-        m.P_curt = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)
-        m.E = pyo.Var(m.H, m.TE, within=pyo.NonNegativeReals)
+        # --- Variaveis de decisao ---
+        m.P_ch   = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)  # carga da bateria (kW)
+        m.P_dis  = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)  # descarga da bateria (kW)
+        m.P_imp  = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)  # importacao da rede (kW)
+        m.P_exp  = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)  # exportacao para a rede (kW)
+        m.P_curt = pyo.Var(m.H, m.T, within=pyo.NonNegativeReals)  # PV curtailed (kW)
+        m.E      = pyo.Var(m.H, m.TE, within=pyo.NonNegativeReals) # energia na bateria (kWh)
 
-        m.x = pyo.Var(m.H, m.T, within=pyo.Binary)  # 1 = charging
-        m.y = pyo.Var(m.H, m.T, within=pyo.Binary)  # 1 = importing
+        # Unico binario: y=0 modo geracao, y=1 modo consumo
+        m.y = pyo.Var(m.H, m.T, within=pyo.Binary)
 
-        def energy_dyn_rule(mm, h, t):
-            return mm.E[h, t] == mm.E[h, t - 1] + (
-                mm.eta_ch[h] * mm.P_ch[h, t] - (1.0 / mm.eta_dis[h]) * mm.P_dis[h, t]
-            ) * mm.dt
-
-        m.energy_dyn = pyo.Constraint(m.H, m.T, rule=energy_dyn_rule)
-        m.energy_init = pyo.Constraint(m.H, rule=lambda mm, h: mm.E[h, 0] == mm.E_init[h])
+        # --- Dinamica de energia da bateria ---
+        # E[t] = E[t-1] + eta_ch * P_ch * dt - P_dis / eta_dis * dt
+        m.energy_balance = pyo.Constraint(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.E[h, t] == mm.E[h, t - 1] + (
+                mm.eta_ch[h] * mm.P_ch[h, t]
+                - (1.0 / mm.eta_dis[h]) * mm.P_dis[h, t]
+            ) * mm.dt,
+        )
+        m.energy_init = pyo.Constraint(
+            m.H, rule=lambda mm, h: mm.E[h, 0] == mm.E_init[h],
+        )
         m.energy_bounds = pyo.Constraint(
             m.H, m.T,
             rule=lambda mm, h, t: pyo.inequality(mm.E_min[h], mm.E[h, t], mm.E_max[h]),
         )
-
-        # Cyclic SoC: prevent the optimiser from emptying batteries at horizon end.
         if self.cyclic_soc:
             m.energy_final = pyo.Constraint(
                 m.H, rule=lambda mm, h: mm.E[h, T] >= mm.E_init[h],
             )
 
-        m.no_simul_ch = pyo.Constraint(
-            m.H, m.T, rule=lambda mm, h, t: mm.P_ch[h, t] <= mm.P_ch_max[h] * mm.x[h, t],
-        )
-        m.no_simul_dis = pyo.Constraint(
-            m.H, m.T, rule=lambda mm, h, t: mm.P_dis[h, t] <= mm.P_dis_max[h] * (1 - mm.x[h, t]),
-        )
-
-        m.no_simul_imp = pyo.Constraint(
-            m.H, m.T, rule=lambda mm, h, t: mm.P_imp[h, t] <= mm.P_grid_max[h] * mm.y[h, t],
-        )
-        m.no_simul_exp = pyo.Constraint(
+        # --- Rede: mutex importacao/exportacao, ambos limitados pela PC ---
+        m.import_limit = pyo.Constraint(
             m.H, m.T,
-            rule=lambda mm, h, t: mm.P_exp[h, t] <= mm.P_grid_max[h] * mm.kappa_exp * (1 - mm.y[h, t]),
+            rule=lambda mm, h, t: mm.P_imp[h, t] <= mm.P_contracted[h] * mm.y[h, t],
+        )
+        m.export_limit = pyo.Constraint(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.P_exp[h, t] <= mm.P_contracted[h] * mm.kappa_exp * (1 - mm.y[h, t]),
         )
 
-        m.curt_limit = pyo.Constraint(
-            m.H, m.T, rule=lambda mm, h, t: mm.P_curt[h, t] <= mm.PV[h, t],
+        # --- Bateria: carga no modo geracao, descarga no modo consumo ---
+        #
+        # charge_limit:    P_ch  <= P_ch_max  * (1 - y)
+        #   y=0 (geracao)  -> P_ch  <= P_ch_max   [carrega de excedente PV]
+        #   y=1 (consumo)  -> P_ch  = 0           [nao carrega — nunca da rede]
+        #
+        # discharge_limit: P_dis <= P_dis_max * y
+        #   y=0 (geracao)  -> P_dis = 0           [nao descarrega — PV vai para carga/export]
+        #   y=1 (consumo)  -> P_dis <= P_dis_max  [descarrega para reduzir importacao]
+        m.charge_limit = pyo.Constraint(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.P_ch[h, t]  <= mm.P_ch_max[h]  * (1 - mm.y[h, t]),
+        )
+        m.discharge_limit = pyo.Constraint(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.P_dis[h, t] <= mm.P_dis_max[h] * mm.y[h, t],
         )
 
-        def power_balance_rule(mm, h, t):
-            return mm.Load[h, t] == (
+        # Curtailment limitado ao PV disponivel
+        m.curtailment_limit = pyo.Constraint(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.P_curt[h, t] <= mm.PV[h, t],
+        )
+
+        # --- Balanco nodal de potencia ---
+        # Load = (PV - P_curt) + P_dis - P_ch + P_imp - P_exp
+        m.power_balance = pyo.Constraint(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.Load[h, t] == (
                 mm.PV[h, t] - mm.P_curt[h, t]
                 + mm.P_dis[h, t] - mm.P_ch[h, t]
                 + mm.P_imp[h, t] - mm.P_exp[h, t]
-            )
+            ),
+        )
 
-        m.power_balance = pyo.Constraint(m.H, m.T, rule=power_balance_rule)
+        # --- Fluxo exacto do PV (disponivel apos solve) ---
+        #
+        # Com charge_limit e discharge_limit, o fluxo e determinisitco:
+        #
+        #   y=0: PV_net = Load + P_ch + P_exp         (balanco sem P_dis e P_imp)
+        #        P_pv_to_load = Load
+        #        P_pv_to_bat  = P_ch
+        #        P_pv_to_exp  = P_exp
+        #
+        #   y=1: PV_net = Load - P_dis - P_imp         (balanco sem P_ch e P_exp)
+        #        P_pv_to_load = PV - P_curt = Load - P_dis - P_imp
+        #        P_pv_to_bat  = 0
+        #        P_pv_to_exp  = 0
+        #
+        # Invariante: P_pv_to_load + P_pv_to_bat + P_pv_to_exp + P_curt = PV
+        m.P_pv_to_load = pyo.Expression(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.Load[h, t] - mm.P_dis[h, t] - mm.P_imp[h, t],
+        )
+        m.P_pv_to_bat = pyo.Expression(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.P_ch[h, t],
+        )
+        m.P_pv_to_exp = pyo.Expression(
+            m.H, m.T,
+            rule=lambda mm, h, t: mm.P_exp[h, t],
+        )
 
+        # --- Objectivo: minimizar custo liquido de energia ---
         m.obj = pyo.Objective(
             expr=sum(
                 (m.c_grid[h, t] * m.P_imp[h, t] - m.c_sell[h, t] * m.P_exp[h, t]) * m.dt
@@ -217,7 +273,3 @@ class MultiHouseModel:
             sense=pyo.minimize,
         )
         return m
-
-
-# Backward-compatible alias kept for legacy imports.
-MultiHouseEnergySharingModel = MultiHouseModel

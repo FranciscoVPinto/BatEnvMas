@@ -1,15 +1,25 @@
 case: b8_pv03_consumption_instant_export__with_deg
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
-  Mec\Tese\BatEnvMas\simpleBatModel\results\alfa_deg_sweep\_sweep_tmp\b8_pv03_consumption_instant_export__with_deg.yaml
-created_at: '2026-05-07T22:21:47.570805'
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\alfa_deg_sweep\_sweep_tmp\b8_pv03_consumption_instant_export__with_deg.yaml
+created_at: '2026-08-24T21:23:23.788282'
 dt_hours: 0.25
 horizon: 2688
 start: 2025-01-01 00:00
 allow_export: true
 cyclic_soc: true
 alpha_mode: fixed
-battery_degradation_eur_per_kwh: 0.033
+battery_degradation_eur_per_kwh: 0.056939328591552756
+battery_degradation_eur_per_kwh_by_house:
+  Apt1: 0.056933843976656344
+  Apt2: 0.056933843976656344
+  Apt3: 0.056942619360490596
+  Apt4: 0.056933843976656344
+  Apt5: 0.056942619360490596
+  Apt6: 0.056942619360490596
+  Apt7: 0.056942619360490596
+  Apt8: 0.056942619360490596
 battery_degradation_pwl: null
+rolling_horizon: null
 sharing_enabled: false
 model_kind: house_indexed_degradation
 warnings: []
@@ -26,7 +36,7 @@ pv_info:
   fallback_details:
     fallback_mode: consumption_instant
     zero_denom: equal_split
-    denom_min: 0.3146111467742455
+    denom_min: 0.31461114677424545
     denom_max: 6.145365816906782
 solver_used: highs
 termination_condition: optimal

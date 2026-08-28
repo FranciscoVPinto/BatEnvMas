@@ -1,7 +1,7 @@
 case: b8_pv09_optimal_export__no_deg
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
-  Mec\Tese\BatEnvMas\simpleBatModel\results\alfa_deg_sweep\_sweep_tmp\b8_pv09_optimal_export__no_deg.yaml
-created_at: '2026-05-07T22:33:43.797142'
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\alfa_deg_sweep\_sweep_tmp\b8_pv09_optimal_export__no_deg.yaml
+created_at: '2026-08-24T21:26:01.431412'
 dt_hours: 0.25
 horizon: 2688
 start: 2025-01-01 00:00
@@ -9,7 +9,9 @@ allow_export: true
 cyclic_soc: true
 alpha_mode: optimal
 battery_degradation_eur_per_kwh: 0.0
+battery_degradation_eur_per_kwh_by_house: null
 battery_degradation_pwl: null
+rolling_horizon: null
 sharing_enabled: false
 model_kind: house_indexed_unified
 warnings: []

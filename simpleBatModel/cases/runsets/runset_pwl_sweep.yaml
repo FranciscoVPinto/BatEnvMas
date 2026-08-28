@@ -7,20 +7,29 @@ cases_glob:
   - "b8_pv18*.yaml"
   - "b8_pv19*.yaml"
 
-# PWL degradation models use hourly timesteps (dt_hours: 1.0).
-# This reduces binary variables 4x vs 15-min, making per-house sub-problems
-# tractable (3600 binaries/house vs 14400). Input data is automatically
-# resampled from 15-min to 1-hour in run_case.py.
+# PWL degradation models at native 15-min resolution (dt_hours: 0.25).
+# No resampling is applied. Horizons match the full_horizon_sweep non-PWL cases.
 sweep:
   - suffix: 1month
     outputs_subdir: 1month
-    time_override: { horizon: 720, dt_hours: 1.0 }
+    time_override: { horizon: 2880, dt_hours: 0.25 }
   - suffix: 3months
     outputs_subdir: 3months
-    time_override: { horizon: 2160, dt_hours: 1.0 }
+    time_override: { horizon: 8640, dt_hours: 0.25 }
+  # Horizontes longos: rolling horizon (aproximado) para o MILP fechar em tempo util.
+  # 1month/3months ficam exatos (baseline para validar o desvio da aproximacao).
   - suffix: 6months
     outputs_subdir: 6months
-    time_override: { horizon: 4320, dt_hours: 1.0 }
+    time_override: { horizon: 17280, dt_hours: 0.25 }
+    overrides:
+      model:
+        rolling_horizon: { enabled: true, window: 1344, step: 672 }
+  - suffix: 1year
+    outputs_subdir: 1year
+    time_override: { horizon: 35040, dt_hours: 0.25 }
+    overrides:
+      model:
+        rolling_horizon: { enabled: true, window: 1344, step: 672 }
 
 defaults:
   outputs_dir: results/full_horizon_sweep

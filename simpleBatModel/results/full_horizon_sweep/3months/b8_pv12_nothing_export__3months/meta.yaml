@@ -1,7 +1,7 @@
 case: b8_pv12_nothing_export__3months
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
-  Mec\Tese\BatEnvMas\simpleBatModel\results\full_horizon_sweep\_sweep_tmp\b8_pv12_nothing_export__3months.yaml
-created_at: '2026-05-10T03:24:10.432151'
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\full_horizon_sweep\_sweep_tmp\b8_pv12_nothing_export__3months.yaml
+created_at: '2026-08-25T08:28:58.949749'
 dt_hours: 0.25
 horizon: 8640
 start: 2025-01-01 00:00
@@ -9,7 +9,9 @@ allow_export: true
 cyclic_soc: true
 alpha_mode: fixed
 battery_degradation_eur_per_kwh: 0.0
+battery_degradation_eur_per_kwh_by_house: null
 battery_degradation_pwl: null
+rolling_horizon: null
 sharing_enabled: false
 model_kind: house_indexed_unified
 warnings: []

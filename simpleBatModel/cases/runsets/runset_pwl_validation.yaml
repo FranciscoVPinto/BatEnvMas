@@ -1,0 +1,36 @@
+runset: pwl_validation
+cases_base_dir: cases/scenarios/building8
+
+# Validacao do rolling horizon a 3 meses: corre COM rolling e escreve numa pasta
+# separada, para comparar com o resultado EXATO ja gerado pelo pwl_sweep em
+#   results/full_horizon_sweep/3months/<caso>__3months/
+# vs (este)
+#   results/pwl_validation/3months_rolling/<caso>__3months_rolling/
+# Comparar: results_pwl_metrics.csv (pwl_degradation_cost_EUR, battery_throughput_kWh)
+# e o custo de rede nos results_house_*.csv. Desvio pequeno => rolling credivel.
+#
+# pv15 (fixed-alpha) valida o caminho de alocacao FIXA.
+# pv19 (optimal-alpha) valida adicionalmente a STAGE 1 de alocacao de PV com
+#   rolling (solve_rolling_horizon_pv_allocation) — o unico ramo do pipeline que
+#   ainda nao tinha validacao exata-vs-rolling ao mesmo nivel.
+cases:
+  - b8_pv15_equal_pwl_export.yaml
+  - b8_pv19_optimal_pwl_export.yaml
+
+sweep:
+  - suffix: 3months_rolling
+    outputs_subdir: 3months_rolling
+    time_override: { horizon: 8640, dt_hours: 0.25 }
+    overrides:
+      model:
+        rolling_horizon: { enabled: true, window: 1344, step: 672 }
+
+defaults:
+  outputs_dir: results/pwl_validation
+  tee: false
+  solver:
+    name: appsi_highs
+    options:
+      mip_rel_gap: 0.005
+      time_limit: 3600.0
+      mip_heuristic_effort: 1.0

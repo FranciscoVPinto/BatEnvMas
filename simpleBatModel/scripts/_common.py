@@ -57,14 +57,21 @@ def load_yaml_dict(path: str | Path, *, inject_key: Optional[str] = None) -> dic
 
 
 def deep_merge(base: dict, override: dict) -> dict:
-    """Recursive merge: dicts are merged key-wise, scalars from `override` win."""
-    out = dict(base or {})
-    for k, v in (override or {}).items():
-        if isinstance(v, dict) and isinstance(out.get(k), dict):
-            out[k] = deep_merge(out[k], v)
-        else:
-            out[k] = v
-    return out
+    """Recursive merge: dicts are merged key-wise, scalars from `override` win.
+
+    An explicit `null` in `override` DELETES the key from the merged result
+    (rather than setting it to None), which is how a child cancels an inherited
+    key (e.g. `data.pv_total: ~`).
+
+    Delega na implementação canónica de `batEnv.io.loaders`, a mesma que resolve
+    o `extends:` dos ficheiros de caso — assim os overrides de runset e a
+    herança de cenários têm garantidamente a MESMA semântica. (Existiam duas
+    cópias idênticas; se divergissem, um override de runset passaria a comportar-se
+    de forma diferente de um `extends`, o que seria muito difícil de detectar.)
+    """
+    from batEnv.io.loaders import _deep_merge
+
+    return _deep_merge(base, override)
 
 
 def resolve_from(yaml_path: Path, maybe_rel: str | Path, *, root: Optional[Path] = None) -> Path:

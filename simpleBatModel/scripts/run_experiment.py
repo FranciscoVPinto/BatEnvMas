@@ -22,10 +22,10 @@ from _common import (
 
 add_src_to_path(ROOT)
 
-import yaml  # noqa: E402
+import yaml  
 
-from batEnv.io import load_case_yaml, validate_runset_cfg  # noqa: E402  (import after path setup)
-from run_case import run_case  # noqa: E402
+from batEnv.io import load_case_yaml, validate_runset_cfg  
+from run_case import run_case  
 
 
 logger = logging.getLogger(__name__)
@@ -55,8 +55,33 @@ def _is_parent_runset(cfg: dict) -> bool:
     return isinstance(cfg.get("runset", None), list)
 
 
+def _rebase_outputs(configured: Path, outputs_root: str | None) -> Path:
+    """Redirect a runset's `outputs_dir` to a different root, keeping the layout.
 
-def _run_single_runset(runset: dict, *, runset_yaml_path: Path, skip_existing: bool = False) -> None:
+    Used by `--outputs-dir`, to re-run a full battery into a clean directory
+    WITHOUT overwriting the existing `results/` (which backs the dissertation's
+    numbers). The first path component is swapped, so the per-runset structure
+    is preserved:
+
+        results/full_horizon_sweep   --outputs-dir results_v2 -->  results_v2/full_horizon_sweep
+        results/alfa_deg_sweep       --outputs-dir results_v2 -->  results_v2/alfa_deg_sweep
+        results                      --outputs-dir results_v2 -->  results_v2
+    """
+    if not outputs_root:
+        return configured if configured.is_absolute() else (ROOT / configured).resolve()
+
+    new_root = Path(outputs_root)
+    if not new_root.is_absolute():
+        new_root = (ROOT / new_root).resolve()
+
+    rel = configured if not configured.is_absolute() else Path(configured.name)
+    tail = Path(*rel.parts[1:]) if len(rel.parts) > 1 else Path()
+    return (new_root / tail).resolve()
+
+
+
+def _run_single_runset(runset: dict, *, runset_yaml_path: Path, skip_existing: bool = False,
+                       outputs_root: str | None = None) -> None:
     runset_name = str(runset.get("runset", runset_yaml_path.stem))
 
     base_dir = Path(runset.get("cases_base_dir", "cases"))
@@ -65,9 +90,7 @@ def _run_single_runset(runset: dict, *, runset_yaml_path: Path, skip_existing: b
 
     defaults = runset.get("defaults", {}) if isinstance(runset.get("defaults", {}), dict) else {}
 
-    outputs_dir = Path(defaults.get("outputs_dir", "results"))
-    if not outputs_dir.is_absolute():
-        outputs_dir = (ROOT / outputs_dir).resolve()
+    outputs_dir = _rebase_outputs(Path(defaults.get("outputs_dir", "results")), outputs_root)
 
     tee_default = bool(defaults.get("tee", False))
 
@@ -170,7 +193,8 @@ def _run_single_runset(runset: dict, *, runset_yaml_path: Path, skip_existing: b
 
 
 
-def _run_parent_runset(parent: dict, *, parent_yaml_path: Path, skip_existing: bool = False) -> None:
+def _run_parent_runset(parent: dict, *, parent_yaml_path: Path, skip_existing: bool = False,
+                       outputs_root: str | None = None) -> None:
     """
     Parent runset YAML example:
 
@@ -206,11 +230,12 @@ def _run_parent_runset(parent: dict, *, parent_yaml_path: Path, skip_existing: b
         child_defaults = rs.get("defaults", {}) if isinstance(rs.get("defaults", {}), dict) else {}
         rs["defaults"] = deep_merge(parent_defaults, child_defaults)
 
-        _run_single_runset(rs, runset_yaml_path=runset_yaml_path, skip_existing=skip_existing)
+        _run_single_runset(rs, runset_yaml_path=runset_yaml_path, skip_existing=skip_existing,
+                           outputs_root=outputs_root)
 
 
 
-def _run_single_experiment(exp: dict, *, exp_yaml_path: Path) -> None:
+def _run_single_experiment(exp: dict, *, exp_yaml_path: Path, outputs_root: str | None = None) -> None:
     """
     Single-experiment YAML example:
 
@@ -229,9 +254,7 @@ def _run_single_experiment(exp: dict, *, exp_yaml_path: Path) -> None:
 
     defaults = exp.get("defaults", {}) if isinstance(exp.get("defaults", {}), dict) else {}
 
-    outputs_dir = Path(defaults.get("outputs_dir", "results"))
-    if not outputs_dir.is_absolute():
-        outputs_dir = (ROOT / outputs_dir).resolve()
+    outputs_dir = _rebase_outputs(Path(defaults.get("outputs_dir", "results")), outputs_root)
 
     tee_default = bool(defaults.get("tee", False))
 
@@ -268,18 +291,21 @@ def _run_single_experiment(exp: dict, *, exp_yaml_path: Path) -> None:
 
 
 
-def run_all(runset_yaml: str | Path, *, skip_existing: bool = False) -> None:
+def run_all(runset_yaml: str | Path, *, skip_existing: bool = False,
+            outputs_root: str | None = None) -> None:
     runset_yaml_path = resolve_from(ROOT, runset_yaml, root=ROOT)
     cfg = load_runset(runset_yaml_path)
 
     if is_single_experiment(cfg):
-        _run_single_experiment(cfg, exp_yaml_path=runset_yaml_path)
+        _run_single_experiment(cfg, exp_yaml_path=runset_yaml_path, outputs_root=outputs_root)
         return
 
     if _is_parent_runset(cfg):
-        _run_parent_runset(cfg, parent_yaml_path=runset_yaml_path, skip_existing=skip_existing)
+        _run_parent_runset(cfg, parent_yaml_path=runset_yaml_path, skip_existing=skip_existing,
+                           outputs_root=outputs_root)
     else:
-        _run_single_runset(cfg, runset_yaml_path=runset_yaml_path, skip_existing=skip_existing)
+        _run_single_runset(cfg, runset_yaml_path=runset_yaml_path, skip_existing=skip_existing,
+                           outputs_root=outputs_root)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -287,6 +313,9 @@ def _parse_args() -> argparse.Namespace:
     ap.add_argument("--runset", default=str(ROOT / "cases" / "runset_parent.yaml"), help="Path to runset YAML")
     ap.add_argument("--skip-existing", action="store_true", default=True, help="Skip cases whose output meta.yaml already exists")
     ap.add_argument("--no-skip-existing", dest="skip_existing", action="store_false", help="Re-run all cases even if output already exists")
+    ap.add_argument("--outputs-dir", default=None,
+                    help="Redirect ALL outputs to this root (e.g. results_v2), preserving the\n"
+                         "per-runset layout. Use to re-run a battery without overwriting results/.")
     ap.add_argument("-v", "--verbose", action="store_true", help="Enable DEBUG logging")
     return ap.parse_args()
 
@@ -294,4 +323,4 @@ def _parse_args() -> argparse.Namespace:
 if __name__ == "__main__":
     args = _parse_args()
     setup_logging(verbose=args.verbose)
-    run_all(args.runset, skip_existing=args.skip_existing)
+    run_all(args.runset, skip_existing=args.skip_existing, outputs_root=args.outputs_dir)

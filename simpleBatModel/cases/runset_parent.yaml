@@ -2,11 +2,24 @@ runset:
   - runsets/runset_alfa_deg_sweep.yaml
   - runsets/runset_full_horizon_sweep.yaml
   - runsets/runset_pwl_sweep.yaml
+  - runsets/runset_pwl_validation.yaml
 
+# Bateria COMPLETA activa — para re-correr tudo de raiz numa pasta limpa:
+#
+#   python scripts/run_experiment.py --outputs-dir results_v2 --no-skip-existing
+#   python scripts/compare_results.py results results_v2
+#
+# O `--outputs-dir` redirige TODAS as saidas preservando o layout por runset,
+# sem tocar em `results/` (que sustenta os numeros do Capitulo 5). Só depois de
+# a comparacao dar dentro da tolerancia e que faz sentido substituir.
+#
+# `pwl_validation` fica a true por estar incluido na re-corrida completa; se so
+# quiser a bateria principal, ponha a false.
 enabled:
   alfa_deg_sweep: true
   full_horizon_sweep: true
   pwl_sweep: true
+  pwl_validation: true
 
 defaults:
   outputs_dir: results

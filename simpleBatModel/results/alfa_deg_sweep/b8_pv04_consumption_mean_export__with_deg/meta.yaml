@@ -1,15 +1,25 @@
 case: b8_pv04_consumption_mean_export__with_deg
 case_yaml: C:\Users\pinto\OneDrive - Universidade de Lisboa\Documentos\Engenharia
-  Mec\Tese\BatEnvMas\simpleBatModel\results\alfa_deg_sweep\_sweep_tmp\b8_pv04_consumption_mean_export__with_deg.yaml
-created_at: '2026-05-07T22:28:13.108231'
+  Mec\Tese\BatEnvMas\simpleBatModel\results_v2\alfa_deg_sweep\_sweep_tmp\b8_pv04_consumption_mean_export__with_deg.yaml
+created_at: '2026-08-24T21:24:50.214234'
 dt_hours: 0.25
 horizon: 2688
 start: 2025-01-01 00:00
 allow_export: true
 cyclic_soc: true
 alpha_mode: fixed
-battery_degradation_eur_per_kwh: 0.033
+battery_degradation_eur_per_kwh: 0.056939328591552756
+battery_degradation_eur_per_kwh_by_house:
+  Apt1: 0.056933843976656344
+  Apt2: 0.056933843976656344
+  Apt3: 0.056942619360490596
+  Apt4: 0.056933843976656344
+  Apt5: 0.056942619360490596
+  Apt6: 0.056942619360490596
+  Apt7: 0.056942619360490596
+  Apt8: 0.056942619360490596
 battery_degradation_pwl: null
+rolling_horizon: null
 sharing_enabled: false
 model_kind: house_indexed_degradation
 warnings: []
@@ -26,14 +36,14 @@ pv_info:
   fallback_details:
     fallback_mode: consumption_mean
     means:
-      Apt1: 0.06348948879160857
-      Apt2: 0.3601670676934727
-      Apt3: 0.175511429053773
-      Apt4: 0.08843818917904853
-      Apt5: 0.22294045628271605
-      Apt6: 0.41512900290006044
-      Apt7: 0.13661803216525406
-      Apt8: 0.3958186050126285
+      Apt1: 0.3601670676934727
+      Apt2: 0.175511429053773
+      Apt3: 0.08843818917904853
+      Apt4: 0.22294045628271605
+      Apt5: 0.41512900290006044
+      Apt6: 0.13661803216525406
+      Apt7: 0.3958186050126285
+      Apt8: 0.06348948879160857
     mean_sum: 1.858112271078562
 solver_used: highs
 termination_condition: optimal

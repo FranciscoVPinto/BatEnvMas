@@ -1,3 +1,10 @@
+"""
+Extensão do MultiHouseModel com penalidade linear de degradação da bateria.
+
+O custo λ (€/kWh de throughput) é calculado por compute_degradation_cost_per_kwh()
+ou definido directamente em model.battery_degradation_eur_per_kwh no YAML.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,16 +18,15 @@ from .multi_house import MultiHouseModel
 @dataclass
 class MultiHouseModelDegradation:
     """
-    Drop-in replacement for `MultiHouseModel.make_instance` that adds a linear
-    battery-degradation penalty to the cost objective.
+    Substituto de MultiHouseModel que adiciona ao objectivo:
 
-    Parameters
+        Σ_{h,t} λ[h] * (P_ch[h,t] + P_dis[h,t]) * dt
+
+    Parâmetros
     ----------
-    dt, allow_export, cyclic_soc
-        Forwarded to the underlying MultiHouseModel.
-    lambda_deg
-        Default per-kWh degradation cost (EUR/kWh). Applied to BOTH P_ch and
-        P_dis. Set to 0 to disable (in which case prefer MultiHouseModel directly).
+    dt, allow_export, cyclic_soc  Passados ao MultiHouseModel.
+    lambda_deg                    λ global (€/kWh). Calcular com
+                                  compute_degradation_cost_per_kwh().
     """
 
     dt: float
@@ -41,43 +47,47 @@ class MultiHouseModelDegradation:
         alpha_mode: str = "fixed",
         lambda_deg_by_house: Optional[Mapping[str, float]] = None,
     ) -> pyo.ConcreteModel:
-        base = MultiHouseModel(
-            dt=self.dt,
-            allow_export=self.allow_export,
-            cyclic_soc=self.cyclic_soc,
-        )
-        m = base.make_instance(
-            houses=houses,
-            loads_by_house=loads_by_house,
+        """
+        Constrói o modelo base e acrescenta a penalidade de degradação.
+
+        lambda_deg_by_house  Override de λ por casa (opcional).
+        """
+        m = MultiHouseModel(
+            dt=self.dt, allow_export=self.allow_export, cyclic_soc=self.cyclic_soc,
+        ).make_instance(
+            houses=houses, loads_by_house=loads_by_house,
             bat_params_by_house=bat_params_by_house,
-            c_grid=c_grid,
-            c_sell=c_sell,
-            pv_by_house=pv_by_house,
-            pv_total=pv_total,
+            c_grid=c_grid, c_sell=c_sell,
+            pv_by_house=pv_by_house, pv_total=pv_total,
             alpha_mode=alpha_mode,
         )
 
+        # λ por casa (com override opcional)
         lam = {
             h: float((lambda_deg_by_house or {}).get(h, self.lambda_deg))
             for h in list(m.H)
         }
         if all(v == 0.0 for v in lam.values()):
-            return m
+            return m  # sem degradação: devolver modelo base sem alterações
 
         m.lambda_deg = pyo.Param(m.H, initialize=lam, within=pyo.NonNegativeReals)
 
-        original_expr = m.obj.expr
+        # Substituir objetivo: custo energia + custo degradação
+        base_cost = m.obj.expr
         m.del_component("obj")
         m.obj = pyo.Objective(
-            expr=original_expr + sum(
+            expr=base_cost + sum(
                 m.lambda_deg[h] * (m.P_ch[h, t] + m.P_dis[h, t]) * m.dt
                 for h in m.H for t in m.T
             ),
             sense=pyo.minimize,
         )
 
-        def _throughput_rule(mm, h):
-            return sum((mm.P_ch[h, t] + mm.P_dis[h, t]) * mm.dt for t in mm.T)
-        m.battery_throughput_kWh = pyo.Expression(m.H, rule=_throughput_rule)
-
+        # Throughput total por casa — útil para estimar ciclos consumidos
+        m.battery_throughput_kWh = pyo.Expression(
+            m.H,
+            rule=lambda mm, h: sum(
+                (mm.P_ch[h, t] + mm.P_dis[h, t]) * mm.dt for t in mm.T
+            ),
+        )
         return m

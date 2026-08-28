@@ -1,6 +1,10 @@
+extends: _b8_base.yaml
 case: b8_pv11_no_sharing_export
 
+# Referência "sem comunidade": cada apartamento usa apenas o seu próprio PV.
+# pv_total do base é anulado; cada casa recebe o seu gerador individual.
 data:
+  pv_total: ~
   pv:
     Apt1: data/pv_gen_01.csv
     Apt2: data/pv_gen_02.csv
@@ -10,29 +14,26 @@ data:
     Apt6: data/pv_gen_06.csv
     Apt7: data/pv_gen_07.csv
     Apt8: data/pv_gen_08.csv
-  loads:
-    Apt1: data/load_cons_09.csv
-    Apt2: data/load_cons_02.csv
-    Apt3: data/load_cons_03.csv
-    Apt4: data/load_cons_04.csv
-    Apt5: data/load_cons_05.csv
-    Apt6: data/load_cons_06.csv
-    Apt7: data/load_cons_07.csv
-    Apt8: data/load_cons_08.csv
-
-tariffs:
-  grid_buy: 0.27
-  grid_sell: 0.06
 
 grid:
   allow_export: true
 
+# Bateria genérica igual para todos — isola o efeito da partilha, não do dimensionamento.
+#
+# `battery_cost_eur` TEM de ser redefinido aqui. O bloco `battery` é fundido
+# chave-a-chave com o do `_b8_base.yaml` (deep_merge do `extends:`), por isso
+# qualquer chave omitida é HERDADA. Sem esta linha, cada apartamento herdava o
+# custo do seu módulo real (2308 / 1560 / 3120 €) e aplicava-o a uma bateria de
+# 10 kWh, ficando com armazenamento a 156–312 €/kWh em vez de 650 €/kWh — e com
+# um λ de degradação diferente entre apartamentos sem qualquer razão física.
+# 6500 € = 650 €/kWh × 10 kWh, o mesmo preço unitário dos módulos Pylontech reais.
 houses:
   Apt1: { battery: &bat
     { E_init: 5.0, E_min: 1.0, E_max: 10.0,
       P_ch_max: 3.3, P_dis_max: 3.3,
       eta_ch: 0.95, eta_dis: 0.95,
-      P_grid_max: 13.8 } }
+      P_contracted: 3.45,
+      battery_cost_eur: 6500 } }
   Apt2: { battery: *bat }
   Apt3: { battery: *bat }
   Apt4: { battery: *bat }
